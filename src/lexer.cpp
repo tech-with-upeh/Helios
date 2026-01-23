@@ -248,7 +248,7 @@ Token * Lexer::tokenizeSTR(enum Tokentype TYPE)
         std::cerr << "\nParserError: UnTerminated String at line " << start_lineno
                     << ", column " << start_charno << "\n";
         std::cerr << "  " << start_lineno << " | " << currentLine.str() << "\n";
-        exit(1);
+         throw std::runtime_error("Lexer Error: Unterminated String"); 
     }
 
     Token * newtoken = new Token();
@@ -446,7 +446,7 @@ std::vector<Token *> Lexer::tokenize()
                 std::cerr << " ^\n\n";
                 std::cout << "Unknown character: " << current << std::endl;
                 std::cout << "at line: " << linenum << " char: " << charnum << std::endl;
-                exit(1);
+                throw std::runtime_error("Lexer Error: Unknown character"); 
             }
         }
         

@@ -11,6 +11,7 @@ add_executable(helios
     src/parser.cpp
     src/semantics.cpp
     src/webengine/webengine.cpp
+    src/webengine/parseconfig.cpp
     src/core/core.cpp
     src/devx/server.cpp
     src/devx/websocket.cpp

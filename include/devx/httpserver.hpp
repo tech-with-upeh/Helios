@@ -30,6 +30,7 @@ class http_session : public std::enable_shared_from_this<http_session> {
     tcp::socket socket_;
     beast::flat_buffer buffer_;
     http::request<http::string_body> req_;
+    boost::asio::steady_timer timer_;
 
 public:
     explicit http_session(tcp::socket socket);
@@ -39,6 +40,7 @@ public:
 private:
     void handle();
 
+    void start_timer();
     void send_method_not_allowed();
     void send_not_found();
 };

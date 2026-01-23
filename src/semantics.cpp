@@ -84,7 +84,7 @@ void SemanticAnalyzer::parserError(const std::string &message, AST_NODE* current
             std::cerr << "^";
         }
         std::cerr << "\n\n";
-        std::exit(1);
+         throw std::runtime_error("Semantics Error"); 
     }
 
 VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bool funcdecl, bool isfrompage) {
@@ -606,6 +606,6 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
 
 void SemanticAnalyzer::semanticError(const std::string &msg) {
     std::cerr << "\n[SemanticError] " << msg << std::endl;
-    exit(1);
+     throw std::runtime_error("SemanticError"); 
 }
 

@@ -1,5 +1,6 @@
 #include <iostream>
 #include "web_engine.hpp"
+#include "parseconfig.hpp"
 #include <algorithm>
 #include "parser.hpp"
 #include <fstream>
@@ -246,6 +247,29 @@ string WebEngine::MakePage(AST_NODE *p, string var, bool firstpage) {
                 ss << "\";\n";
             }
 
+            
+            try{
+                WebLinks web = parseHeliosWebConfig("web/helios.web.config");
+
+                for (const auto &s : web.scripts) {
+                    ss << "\t\tpage.addScript(\"" << s << "\");\n";
+                }
+                for (const auto &c : web.css) {
+                    ss << "\t\tpage.addStylesheet(\"" << c << "\");\n";
+                }
+
+                if (!web.favicon.empty()) {
+                    ss << "\t\tpage.setFavicon(\"" << web.favicon << "\");\n";
+                } else {
+                    ss << "\t\tpage.setFavicon(\"logo.png\");\n";
+                }
+
+                
+            } catch (const std::exception& e) {
+                std::cerr << e.what() << "\n";
+                throw std::runtime_error("WebEngine Error");
+            }
+            
             for (auto &child : p->SUB_STATEMENTS) {
                 ss << "\n\t\t" << HandleAst(child, "page", true);
             }
@@ -322,9 +346,12 @@ string WebEngine::MakeElement(AST_NODE *p, string parent, string el,string eltyp
                     ss << "\n\t\tVNode "+varid+"(\""+ el + "\",\"" + *(firstparam->value) +"\");\n";
                 } else if (firstparam->TYPE == NODE_VARIABLE) {
                     ss << "\n\t\tVNode "+varid+"(\""+ el + "\"," + HandleAst(firstparam, parent) +");\n"; 
+                } else if (firstparam->TYPE == NODE_TOSTR) {
+                    ss << "\n\t\tVNode "+varid+"(\""+ el + "\"," + MakeConversion(firstparam, firstparam->TYPE, false) +");\n";
                 } else {
-                    cout << "gor error P text is not a string or variable";
-                    exit(1);
+                    cout << nodetostr(firstparam->TYPE) << "\n";
+                    cout << "we didnt plan for this\ngot error P's text is not a string or variable\n";
+                     throw std::runtime_error("WebEngine Error"); 
             }
         }
         if (el == "div")

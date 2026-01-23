@@ -1,4 +1,4 @@
-const canvas = document.querySelector("canvas");
+const canvas = document.querySelector("#bg");
 const ctx = canvas.getContext("2d");
 
 canvas.width = window.innerWidth;
@@ -17,7 +17,6 @@ const target = {
 window.addEventListener("mousemove", (e) => {
   target.x = e.x;
   target.y = e.y;
-  console.log("-->", e.x, e.y);
 });
 
 class Particle {
@@ -33,7 +32,7 @@ class Particle {
   draw() {
     if (this.alpha <= 0) return;
 
-    ctx.strokeStyle = `rgba(255, 255, 255, ${this.alpha /2})`;
+    ctx.strokeStyle = `rgba(255, 255, 255, ${this.alpha / 2})`;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(this.x, this.y);
@@ -58,7 +57,7 @@ class Particle {
 
     if (distance < target.radius) {
       // Smooth alpha based on proximity to the last known point
-      let proximityAlpha = (1 - distance / target.radius ) / 2;
+      let proximityAlpha = (1 - distance / target.radius) / 2;
       this.alpha = proximityAlpha;
 
       // Gentle interactive push
@@ -89,7 +88,6 @@ function init() {
 }
 
 function animate() {
-  ctx.fillStyle = "black";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
   // We pass target.x and target.y directly.

@@ -2,6 +2,8 @@
 
 #include <boost/beast.hpp>
 #include <boost/asio.hpp>
+#include <boost/asio/post.hpp> 
+
 #include <memory>
 #include <string>
 #include <set>
@@ -37,6 +39,7 @@ class websocket_session
 {
     websocket::stream<tcp::socket> helios_;
     beast::flat_buffer buffer_;
+    net::strand<net::any_io_executor> strand_;
 
 public:
     explicit websocket_session(tcp::socket socket);

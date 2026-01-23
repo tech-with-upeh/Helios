@@ -74,7 +74,7 @@ Parser::Parser(vector<Token *> tokens)
 
     // ---------- Error Handler ----------
     void Parser::parserError(const std::string &message) {
-        std::cerr << "\nParserError: " << message
+        std::cerr << "\n" << message
                   << " at line " << current->lineno
                   << ", column " << current->charno << "\n";
         std::cerr << "  " << current->lineno << " | " << current->sourceLine << "\n";
@@ -86,23 +86,23 @@ Parser::Parser(vector<Token *> tokens)
             std::cerr << "^";
         }
         std::cerr << "\n\n";
-        std::exit(1);
+        throw std::runtime_error("ParserError"); 
     }
 
      // ---------- Error Handler ----------
     void Parser::parserWarning(const std::string &message) {
-        std::cerr << "\nWarning: " << message
+        std::cout << "\nWarning: " << message
                   << " at line " << current->lineno
                   << ", column " << current->charno << "\n";
-        std::cerr << "  " << current->lineno << " | " << current->sourceLine << "\n";
-        std::cerr << "    ";
+        std::cout << "  " << current->lineno << " | " << current->sourceLine << "\n";
+        std::cout << "    ";
         for (int i = 1; i < (current->charno+to_string(current->lineno).length()+1); ++i)
-            std::cerr << " ";
+            std::cout << " ";
         for (int i = 0; i < current->value.length() + 2; i++)
         {
-            std::cerr << "^";
+            std::cout << "^";
         }
-        std::cerr << "\n\n";
+        std::cout << "\n\n";
     }
 
     // ---------- Token Consumption ----------
@@ -368,9 +368,10 @@ Parser::Parser(vector<Token *> tokens)
         // node->CHILD = parseComparison();
         switch (nodetype) {
             case NODE_TOSTR: {
-                if (current->TYPE != TOKEN_INT || current->TYPE != TOKEN_FLOAT) {
+                if (current->TYPE != TOKEN_INT && current->TYPE != TOKEN_FLOAT && current->TYPE != TOKEN_ID) {
                     parserError("Can Only Convert Number str");
                 }
+                break;
             }
             case NODE_TOFLOAT:
             case NODE_TOINT: {
@@ -383,7 +384,8 @@ Parser::Parser(vector<Token *> tokens)
                     if (!regex_match(current->value, pattern) || current->value[0] == '.') {
                         parserError("String Doesnt Contain Number '"+ current->value + "'");
                     }
-                }   
+                }
+                break;
             }
             default: {
                 parserWarning("????");
@@ -1014,7 +1016,7 @@ Parser::Parser(vector<Token *> tokens)
                     current->value != "id" &&
                     current->value != "cls") 
                 {
-                    parserError("Expecting one of: 'id', 'cls', 'style', 'route' but got: " + current->value);
+                    parserError("Expecting one of: 'title', 'id', 'cls', 'style', 'route' but got: " + current->value);
                 }
 
                 AST_NODE *param = new AST_NODE();
@@ -1216,9 +1218,9 @@ Parser::Parser(vector<Token *> tokens)
                     param->TYPE = NODE_STRING;
                     param->value = &current->value;
                     param->lineno = current->lineno;
-            param->sourceLine = current->sourceLine;
-           param->extra = current->extra;
-            param->charno = current->charno;
+                    param->sourceLine = current->sourceLine;
+                    param->extra = current->extra;
+                    param->charno = current->charno;
                     proceed(TOKEN_STRING);
                 }
                 if (current->TYPE == TOKEN_ID)
@@ -1226,14 +1228,22 @@ Parser::Parser(vector<Token *> tokens)
                     param->TYPE = NODE_VARIABLE;
                     param->value = &current->value;
                     param->lineno = current->lineno;
-            param->sourceLine = current->sourceLine;
-           param->extra = current->extra;
-            param->charno = current->charno;
+                    param->sourceLine = current->sourceLine;
+                    param->extra = current->extra;
+                    param->charno = current->charno;
                     proceed(TOKEN_ID);
                 }
                 
             } else {
-                parserError("Unexpected in" + nodetostr(typw) +"() : "+ current->value);
+                if (current->TYPE == TOKEN_KEYWORD)
+                {
+                    if (current->value == "to_str") {
+                        param = parseConversions(NODE_TOSTR);
+
+                    }
+                } else {
+                    parserError("Unexpected in" + nodetostr(typw) +"() : "+ current->value);
+                }
             }
 
 

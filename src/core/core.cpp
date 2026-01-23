@@ -2,6 +2,7 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <thread> 
 
 #include "core.hpp"
 #include "lexer.hpp"
@@ -13,6 +14,8 @@
 
 #include <boost/beast.hpp>
 #include <boost/asio.hpp>
+#include <boost/asio/thread_pool.hpp>  // net::thread_pool
+#include <boost/asio/post.hpp>         // net::post
 
 #include <memory>
 #include "httpserver.hpp"
@@ -44,10 +47,13 @@ private:
     void accept() {
         acceptor_.async_accept(socket_,
             [self = shared_from_this()](beast::error_code ec) {
-                if (!ec)
-                    std::make_shared<http_session>(
-                        std::move(self->socket_))->run();
-                self->accept();
+                if (ec) {
+    std::cerr << "Accept error: " << ec.message() << "\n";
+    std::this_thread::sleep_for(std::chrono::seconds(1));
+} else {
+    std::make_shared<http_session>(std::move(self->socket_))->run();
+}
+self->accept();
             });
     }
 };
@@ -108,18 +114,40 @@ void Core::generateFiles(const vector<string>& targets, const string& pname) {
         if (target == "web") {
             fs::create_directory(root + "/web");
             ofstream(root + "/web/index.html") << R"(<!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <title></title>
-                </head>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Helios App</title>
+</head>
                 <body>
                     <script>
+                        window.Helios = {
+                            ws: null,
+
+                            init() {
+                                const protocol = location.protocol === "https:" ? "wss" : "ws";
+                                this.ws = new WebSocket(`${protocol}://${location.host}`);
+
+                                this.ws.onmessage = (e) => {
+                                    if (e.data === "reload") location.reload();
+                                };
+                            },
+
+                            send(msg) {
+                                if (this.ws?.readyState === WebSocket.OPEN) {
+                                    this.ws.send(msg);
+                                }
+                            }
+                        };
+
+                        Helios.init();
                         var Module = {
                             onRuntimeInitialized: function() {
                                 console.log('[HELIOS] WASM Module initialized [HELIOS]');
                             },
                             print: function(text) {
+                                Helios.send(text);
                                 console.log('[HELIOS]:', text);
                             }
                         };
@@ -893,32 +921,78 @@ void Core::devTarget(const vector<string>& targets, const string& pname) {
                 exit(1);
             }
             cout << "[Helios] Building for development... \n";
-            builder();
             try {
-                net::io_context ioc{1};
+                builder();
+            } catch (std::exception& e) {
+                std::cerr << "Helios: " << e.what() << "\n";
+            }
+            try {
+                net::io_context ioc;
 
+                // ---------------- HTTP + WS server ----------------
+                std::make_shared<listener>(
+                    ioc,
+                    tcp::endpoint{tcp::v4(), 9000}
+                )->run();
+
+                // ---------------- Build worker pool ----------------
+                // Heavy work must NOT run on io_context threads
+                net::thread_pool build_pool{1};
+
+                // ---------------- File watcher ----------------
                 auto watcher = std::make_shared<FileWatcher>(
                     ioc,
                     "./",
                     ".ink",
-                    [&]() {
-                        std::cout << "Hot Reloading (Not done!) -->";
-                        builder();
-                        std::cout << "Done -->\n";
-                        websocket_manager::broadcast("reload");  // send "reload" to all connected WebSocket clients
+                    [&] {
+                        std::cout << "Hot Reloading -->\n";
+
+                        // Run builder off the IO threads
+                        net::post(build_pool, [&] {
+                            try {
+                                builder();
+                            } catch (const std::exception& e) {
+                                std::cerr << "Helios: " << e.what() << "\n";
+                            }
+
+                            // Notify browsers back on io_context
+                            net::post(ioc, [] {
+                                websocket_manager::broadcast("reload");
+                                std::cout << "Done -->\n";
+                            });
+                        });
                     }
                 );
 
                 watcher->start();
 
+                // ---------------- Run io_context on multiple threads ----------------
+                const unsigned threads =
+                    std::max(1u, std::thread::hardware_concurrency());
 
-                std::make_shared<listener>(
-                    ioc,
-                    tcp::endpoint{tcp::v4(), 8000}
-                )->run();
+                std::vector<std::thread> pool;
+                pool.reserve(threads);
 
-                std::cout << "Compiled Successfully!\nStarted running at http://localhost:8000\n";
-                ioc.run();
+                for (unsigned i = 0; i < threads; ++i) {
+                    pool.emplace_back([&ioc] {
+                        try {
+            ioc.run();
+        } catch (const std::exception& e) {
+            std::cerr << "IO thread crashed: " << e.what() << "\n";
+            std::abort(); // Force core dump
+        } catch (...) {
+            std::cerr << "IO thread crashed with unknown exception\n";
+            std::abort();
+        }
+                    });
+                }
+
+                std::cout << "Dev server running on http://localhost:9000\n";
+
+                for (auto& t : pool)
+                    t.join();
+
+                build_pool.join();
             }
             catch (std::exception& e) {
                 std::cerr << "Error: " << e.what() << "\n";

@@ -1,4 +1,5 @@
 #include "httpserver.hpp"
+#include <ranges>
 
 const std::string WEB_ROOT = "./web";
 
@@ -12,8 +13,11 @@ std::string mime_type(const std::string& path) {
     if (path.ends_with(".jpg"))  return "image/jpeg";
     if (path.ends_with(".svg"))  return "image/svg+xml";
     if (path.ends_with(".wasm")) return "application/wasm";
+    if (path.ends_with(".ico"))  return "image/x-icon";
+    if (path.ends_with(".json")) return "application/json";
     return "application/octet-stream";
 }
+
 
 /* ======================= helpers ======================= */
 
@@ -31,12 +35,22 @@ bool read_file(const std::string& path, std::string& out) {
 /* ======================= http_session ======================= */
 
 http_session::http_session(tcp::socket socket)
-    : socket_(std::move(socket)) {}
+    : socket_(std::move(socket)), timer_(socket_.get_executor()) {}
+
 
 void http_session::run() {
+    start_timer();
     http::async_read(socket_, buffer_, req_,
         [self = shared_from_this()](beast::error_code ec, std::size_t) {
-            if (!ec) self->handle();
+         
+            self->timer_.cancel();  // Cancel with error code to not throw
+            
+            if (ec) {
+                std::cerr << "Read error: " << ec.message() << "\n";
+                return;  // Let session die naturally
+            }
+            
+            self->handle();
         });
 }
 
@@ -66,8 +80,10 @@ void http_session::handle() {
         res.set(http::field::allow, "GET, HEAD, OPTIONS");
         res.prepare_payload();
         http::async_write(socket_, res,
-            [self = shared_from_this()](beast::error_code, std::size_t) {
-                self->socket_.shutdown(tcp::socket::shutdown_send);
+            [self = shared_from_this()](beast::error_code ec, std::size_t) {
+                if (ec) {
+            std::cerr << "Write error: " << ec.message() << "\n";
+        }
             });
         return;
     }
@@ -77,17 +93,29 @@ void http_session::handle() {
     if (target.empty())
         target = "/";
 
-    // prevent directory traversal
-    if (target.find("..") != std::string::npos) {
+    if (target.find("..") != std::string::npos &&
+    !(target.rfind("../public/", 0) == 0 ||
+      target.rfind("..\\public\\", 0) == 0)) {
         send_not_found();
         return;
     }
 
+
     // normalize
     if (target == "/")
         target = "/index.html";
-
     std::string full_path = WEB_ROOT + target;
+
+    if (target.find(".png") != std::string::npos 
+        || target.find(".jpg") != std::string::npos
+        || target.find(".svg") != std::string::npos 
+        || target.find(".ico") != std::string::npos 
+        || target.find(".jpeg") != std::string::npos
+        || target.find(".gif") != std::string::npos
+    ) {
+        full_path =  "./public" + target;
+    }
+    
     std::string body;
     std::cout << http::to_string(req_.method()) << " -> " << target << std::endl;
 
@@ -116,8 +144,10 @@ void http_session::handle() {
 
     res.prepare_payload();
     http::async_write(socket_, res,
-        [self = shared_from_this()](beast::error_code, std::size_t) {
-            self->socket_.shutdown(tcp::socket::shutdown_send);
+        [self = shared_from_this()](beast::error_code ec, std::size_t) {
+            if (ec) {
+            std::cerr << "Write error: " << ec.message() << "\n";
+        }
         });
 }
 
@@ -129,14 +159,40 @@ void http_session::send_method_not_allowed() {
     res.body() = "405 Method Not Allowed";
     res.prepare_payload();
     http::async_write(socket_, res,
-        [self = shared_from_this()](beast::error_code, std::size_t) {
-            self->socket_.shutdown(tcp::socket::shutdown_send);
+        [self = shared_from_this()](beast::error_code ec, std::size_t) {
+            if (ec) {
+            std::cerr << "Write error: " << ec.message() << "\n";
+        }
         });
 }
 
 void http_session::send_not_found() {
-    http::response<http::string_body>{
+    http::response<http::string_body> res{
         http::status::not_found, req_.version()
     };
-    // only happens if index.html is missing
+    res.set(http::field::content_type, "text/plain");
+    res.body() = "404 Not Found";
+    res.prepare_payload();
+
+    http::async_write(socket_, res,
+        [self = shared_from_this()](beast::error_code ec, std::size_t) {
+            if (ec) {
+            std::cerr << "Write error: " << ec.message() << "\n";
+        }
+        });
+}
+
+void http_session::start_timer() {
+    timer_.expires_after(std::chrono::seconds(10)); // 10s timeout
+    timer_.async_wait([self = shared_from_this()](const boost::system::error_code& ec){
+        if (ec == net::error::operation_aborted) {
+            std::cout << "timer cancelled, closing connection\n";
+            return; // Timer was cancelled, all good
+        }
+        if (!ec) {
+            std::cout << "Client timed out, closing connection\n";
+            boost::system::error_code close_ec;
+            self->socket_.close(close_ec); // Use error_code version to not throw
+        }
+    });
 }

@@ -50,6 +50,6 @@ class WebEngine {
         string makeMath(AST_NODE *p, NODE_TYPE nodetype);
 
         string HandleAst(AST_NODE *p, string parent = "root", bool funcdecl=false, bool fromui = true);
-        // Write file to disk
+
         bool makefile(const string &directoryPath, const string &filebuffer);
 };

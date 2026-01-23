@@ -27,7 +27,8 @@ void websocket_manager::broadcast(const std::string& msg) {
 /* ======================= WebSocket Session ======================= */
 
 websocket_session::websocket_session(tcp::socket socket)
-    : helios_(std::move(socket)) {}
+    : helios_(std::move(socket))
+    , strand_(helios_.get_executor()) {}
 
 void websocket_session::run(
     beast::http::request<beast::http::string_body> req)
@@ -45,11 +46,15 @@ void websocket_session::run(
         });
 }
 
-void websocket_session::send(const std::string& text) {
-    helios_.text(true);
-    helios_.async_write(
-        net::buffer(text),
-        [](beast::error_code, std::size_t) {});
+void websocket_session::send(const std::string& msg) {
+    net::post(strand_,
+        [self = shared_from_this(), msg] {
+            self->helios_.text(true);
+            self->helios_.async_write(
+                net::buffer(msg),
+                [](beast::error_code, std::size_t) {}
+            );
+        });
 }
 
 void websocket_session::read() {

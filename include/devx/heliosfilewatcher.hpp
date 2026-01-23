@@ -62,6 +62,7 @@ private:
                 if (!self->last_write_.contains(path) ||
                     self->last_write_[path] != write_time)
                 {
+                    std::cout << "[FileWatcher] changed: " << path << "\n";
                     self->last_write_[path] = write_time;
                     changed = true;
                 }
@@ -80,7 +81,12 @@ private:
             return; // ignore changes during cooldown
 
         // Fire immediately
-        if (on_change_) on_change_();
+        if (on_change_) {
+            net::post(ioc_, [self = shared_from_this()] {
+                if (self->on_change_) self->on_change_();
+            });
+
+        }
 
         // Start cooldown timer
         cooling_down_ = true;
