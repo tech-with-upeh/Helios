@@ -248,7 +248,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
             return TYPE_FUNCTION;
         }
 
-        case NODE_TEXT:
+        case HELIOS_NODE_TEXT:
         case NODE_CANVAS:
         case NODE_IMAGE:
         case NODE_VIEW: {

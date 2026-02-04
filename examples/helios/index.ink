@@ -1,15 +1,17 @@
 
-page("Helios ~ Your Full Stack FrameWork", style={
+page("Helios ~ Your Full Stack FrmeWork", style={
     "background-color": "black",
     "color": "white",
     "padding": "0px",
     "margin": "0px"
 }) {
+    
     h = Platform().height
     w = Platform().width
     @state num : 0
     canvas("bg", height=h, width=w)
-    img("box-bg.jpg", style={
+    img("box-bg.jpg", style={ 
+
         "position": "absolute",
         "top": "50px",
         "left": "0px",
@@ -19,14 +21,13 @@ page("Helios ~ Your Full Stack FrameWork", style={
         "z-index": "1",
         "opacity": "0.4"
     })
-
+ 
     view("mydiv", style={
         "height": "50px",
         "background-color": "gray"
-    }, onclick=(num) {
+    }, onclick=(num) { 
         num = num + 1
-        print(num)
-        
+        print(num) 
     }) {
         text(to_str(num), style={
             "padding": "0px",

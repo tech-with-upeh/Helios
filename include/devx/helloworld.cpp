@@ -1,8 +1,5 @@
-#ifndef __HELIOS_SERVER_H
-#define __HELIOS_SERVER_H
-
+#include <uwebsockets/App.h>
 #include "heliosfilewatcher.hpp"
-
 static const std::string WEB_ROOT = "./web";
 static const std::string PUBLIC_ROOT = "./public";
 
@@ -28,4 +25,7 @@ bool read_file(const std::string& path, std::string& out) {
     return true;
 }
 
-#endif
+/* ================= MAIN SERVER ================= */
+int main() {
+    
+}

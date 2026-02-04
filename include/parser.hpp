@@ -1,4 +1,3 @@
-#pragma once
 #ifndef __PARSER_H
 #define __PARSER_H
 
@@ -7,8 +6,6 @@
 #include <string>
 #include <cctype>
 #include <regex>
-
-using namespace std;
  
 enum NODE_TYPE {
     NODE_ROOT,
@@ -44,7 +41,7 @@ enum NODE_TYPE {
     NODE_app,
     NODE_page,
     NODE_VIEW,
-    NODE_TEXT,
+    HELIOS_NODE_TEXT,
     NODE_IMAGE,
     NODE_INPUT,
     NODE_CANVAS,
@@ -77,7 +74,7 @@ struct AST_NODE {
     std::string extra;
 };
 
-string nodetostr(enum NODE_TYPE tYPE);
+std::string nodetostr(enum NODE_TYPE tYPE);
 
 class Parser {
 public:
@@ -96,7 +93,7 @@ public:
 
     AST_NODE *parseID();
 
-    AST_NODE *parseInstancecall(string *buffer);
+    AST_NODE *parseInstancecall(std::string *buffer);
 
     //parse list
     AST_NODE *parseList();
@@ -124,9 +121,9 @@ public:
 
     AST_NODE *parseBOOL(enum NODE_TYPE Tokentype);
      // ---------- FUNCTION CALL ----------
-    AST_NODE *parseFunctionCall(string *funcName, NODE_TYPE tyPE = NODE_FUNCTION_CALL);
+    AST_NODE *parseFunctionCall(std::string *funcName, NODE_TYPE tyPE = NODE_FUNCTION_CALL);
     // ---------- FUNCTION DECLARATION ----------
-    AST_NODE *parseFunctionDecl(bool callback=false, string *funcname = nullptr, int *noargs = NULL);
+    AST_NODE *parseFunctionDecl(bool callback=false, std::string *funcname = nullptr, int *noargs = NULL);
 
     AST_NODE *parsePageParam();
     AST_NODE *parsepage();

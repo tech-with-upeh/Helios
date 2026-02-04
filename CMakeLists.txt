@@ -4,20 +4,18 @@ project(helios LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+find_package(unofficial-uwebsockets CONFIG REQUIRED)
 
 add_executable(helios
     main.cpp
+    src/core/core.cpp
     src/lexer.cpp
     src/parser.cpp
     src/semantics.cpp
     src/webengine/webengine.cpp
     src/webengine/parseconfig.cpp
-    src/core/core.cpp
-    src/devx/server.cpp
-    src/devx/websocket.cpp
+    
 )
-
-
 target_include_directories(helios
     PRIVATE
         ${PROJECT_SOURCE_DIR}/include
@@ -26,12 +24,12 @@ target_include_directories(helios
         ${PROJECT_SOURCE_DIR}/include/core
 )
 
+
 if(WIN32)
-    find_package(Boost REQUIRED COMPONENTS beast)
         target_link_libraries(helios PRIVATE
             ws2_32
             mswsock
-            Boost::beast
+            unofficial::uwebsockets::uwebsockets
         )
 endif() 
 

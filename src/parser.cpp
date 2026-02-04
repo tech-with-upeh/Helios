@@ -34,7 +34,7 @@ string nodetostr(enum NODE_TYPE tYPE) {
         case NODE_app: return "UIapp"; break;
         case NODE_page: return "UIpage"; break;
         case NODE_VIEW: return "UIVIEW"; break;
-        case NODE_TEXT: return "UITEXT"; break;
+        case HELIOS_NODE_TEXT: return "UITEXT"; break;
         case NODE_IMAGE: return "UIIMAGE"; break;
         case NODE_INPUT: return "UIINPUT"; break;
         case NODE_ARGS: return "ARGS"; break;
@@ -479,7 +479,7 @@ Parser::Parser(vector<Token *> tokens)
             } else if (current->value == "view") {
                 return parseView(NODE_VIEW);
             } else if (current->value == "text") {
-                return parseView(NODE_TEXT);
+                return parseView(HELIOS_NODE_TEXT);
             } else if (current->value == "true" || current->value == "false") {
                 AST_NODE *node = parseBOOL(NODE_BOOL);
                 proceed(current->TYPE);
@@ -1845,7 +1845,7 @@ Parser::Parser(vector<Token *> tokens)
             } else if (current->value == "view") {
                 return parseView(NODE_VIEW);
             } else if (current->value == "text") {
-                return parseView(NODE_TEXT);
+                return parseView(HELIOS_NODE_TEXT);
             } else if (current->value == "draw") {
                 return parseCtx();
             } else if(current->value == "Platform") {

@@ -40,7 +40,7 @@ void printAST(AST_NODE* node, int depth = 0, const std::string& relation = "ROOT
         case NODE_app: std::cout << "UIapp"; break;
         case NODE_page: std::cout << "UIpage"; break;
         case NODE_VIEW: std::cout << "UIVIEW"; break;
-        case NODE_TEXT: std::cout << "UITEXT"; break;
+        case HELIOS_NODE_TEXT: std::cout << "UITEXT"; break;
         case NODE_ARGS: std::cout << "ARGS"; break;
         case NODE_DICT: std::cout << "DICTIONARY"; break;
         case NODE_KEYVALUE: std::cout << "KEYVALUE"; break;

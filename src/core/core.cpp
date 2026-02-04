@@ -4,59 +4,23 @@
 #include <cstring>
 #include <thread> 
 
-#include "core.hpp"
+
 #include "lexer.hpp"
 #include "parser.hpp"
 #include "astvisualise.hpp"
 #include "semantics.hpp"
 #include "web_engine.hpp"
+#include "core.hpp"
 
-
-#include <boost/beast.hpp>
-#include <boost/asio.hpp>
-#include <boost/asio/thread_pool.hpp>  // net::thread_pool
-#include <boost/asio/post.hpp>         // net::post
 
 #include <memory>
+#include <uwebsockets/App.h>
 #include "httpserver.hpp"
-#include "websocketserver.hpp"
-#include "heliosfilewatcher.hpp"
+
 
 
 namespace fs = std::filesystem;
 using namespace std;
-
-class listener : public std::enable_shared_from_this<listener> {
-    tcp::acceptor acceptor_;
-    tcp::socket socket_;
-
-public:
-    listener(net::io_context& ioc, tcp::endpoint ep)
-        : acceptor_(ioc), socket_(ioc) {
-        acceptor_.open(ep.protocol());
-        acceptor_.set_option(net::socket_base::reuse_address(true));
-        acceptor_.bind(ep);
-        acceptor_.listen();
-    }
-
-    void run() {
-        accept();
-    }
-
-private:
-    void accept() {
-        acceptor_.async_accept(socket_,
-            [self = shared_from_this()](beast::error_code ec) {
-                if (ec) {
-    std::cerr << "Accept error: " << ec.message() << "\n";
-    std::this_thread::sleep_for(std::chrono::seconds(1));
-} else {
-    std::make_shared<http_session>(std::move(self->socket_))->run();
-}
-self->accept();
-            });
-    }
-};
 
 
 Core::Core() {}
@@ -923,80 +887,87 @@ void Core::devTarget(const vector<string>& targets, const string& pname) {
             cout << "[Helios] Building for development... \n";
             try {
                 builder();
+                std::mutex build_mutex;
+
+                uWS::App app;
+                uWS::Loop* loop = nullptr;
+
+                /* ---------- HTTP ---------- */
+                app.get("/*", [](uWS::HttpResponse<false>* res,
+                      uWS::HttpRequest* req) {
+                    std::string_view targetview = req->getUrl();
+                    std::string target(targetview);
+                    if (target.empty() || target == "/") target = "/index.html";
+
+                    std::string full_path;
+                    if (target.ends_with(".png") || target.ends_with(".jpg") ||
+                        target.ends_with(".jpeg") || target.ends_with(".svg") ||
+                        target.ends_with(".ico") || target.ends_with(".gif")) {
+                        full_path = PUBLIC_ROOT + target;
+                    } else {
+                        full_path = WEB_ROOT + target;
+                    }
+
+                    std::string body;
+                    if (!read_file(full_path, body)) {
+                        full_path = WEB_ROOT + "/index.html";
+                        if (!read_file(full_path, body)) {
+                            res->writeStatus("404 Not Found")->end("Not found");
+                            return;
+                        }
+                    }
+
+                    res->writeHeader("Content-Type", mime_type(full_path))->end(body);
+                });
+
+                /* ---------- WEBSOCKET ---------- */
+                app.ws<int>("/ws", {
+                    .open = [](auto* ws) {
+                        ws->subscribe("reload");
+                        std::cout << "WS connected & subscribed\n";
+                    },
+                    .message = [](auto* ws, std::string_view msg, uWS::OpCode) {
+                        if (msg == "ping") ws->send("pong", uWS::OpCode::TEXT);
+                    }
+                });
+
+                /* ---------- LISTEN ---------- */
+                app.listen(8000, [&](auto* token) {
+                    if (!token) return;
+
+                    std::cout << "Helios dev server running on :8000\n";
+
+                    loop = uWS::Loop::get();
+
+                    static FileWatcher watcher(
+                        "./", ".ink",
+                        [&]{
+                            std::cout << "Hot Reloading -->\n";
+
+                            // Only one builder at a time
+                            std::lock_guard<std::mutex> lock(build_mutex);
+
+                            // simulate heavy work
+                            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+                            std::cout << "[builder] done\n";
+
+                            // broadcast reload safely in uWS thread
+                            loop->defer([&app]{
+                                app.publish("reload", "r", uWS::OpCode::TEXT);
+                                std::cout << "Reload broadcasted\n";
+                            });
+                        }
+                    );
+
+                    watcher.start();
+                });
+
+                app.run();
             } catch (std::exception& e) {
                 std::cerr << "Helios: " << e.what() << "\n";
             }
-            try {
-                net::io_context ioc;
 
-                // ---------------- HTTP + WS server ----------------
-                std::make_shared<listener>(
-                    ioc,
-                    tcp::endpoint{tcp::v4(), 9000}
-                )->run();
 
-                // ---------------- Build worker pool ----------------
-                // Heavy work must NOT run on io_context threads
-                net::thread_pool build_pool{1};
-
-                // ---------------- File watcher ----------------
-                auto watcher = std::make_shared<FileWatcher>(
-                    ioc,
-                    "./",
-                    ".ink",
-                    [&] {
-                        std::cout << "Hot Reloading -->\n";
-
-                        // Run builder off the IO threads
-                        net::post(build_pool, [&] {
-                            try {
-                                builder();
-                            } catch (const std::exception& e) {
-                                std::cerr << "Helios: " << e.what() << "\n";
-                            }
-
-                            // Notify browsers back on io_context
-                            net::post(ioc, [] {
-                                websocket_manager::broadcast("reload");
-                                std::cout << "Done -->\n";
-                            });
-                        });
-                    }
-                );
-
-                watcher->start();
-
-                // ---------------- Run io_context on multiple threads ----------------
-                const unsigned threads =
-                    std::max(1u, std::thread::hardware_concurrency());
-
-                std::vector<std::thread> pool;
-                pool.reserve(threads);
-
-                for (unsigned i = 0; i < threads; ++i) {
-                    pool.emplace_back([&ioc] {
-                        try {
-            ioc.run();
-        } catch (const std::exception& e) {
-            std::cerr << "IO thread crashed: " << e.what() << "\n";
-            std::abort(); // Force core dump
-        } catch (...) {
-            std::cerr << "IO thread crashed with unknown exception\n";
-            std::abort();
-        }
-                    });
-                }
-
-                std::cout << "Dev server running on http://localhost:9000\n";
-
-                for (auto& t : pool)
-                    t.join();
-
-                build_pool.join();
-            }
-            catch (std::exception& e) {
-                std::cerr << "Error: " << e.what() << "\n";
-            }
             //string cmd = "cd " + root + "/web && emcc main.cpp -o main.js -sEXPORTED_FUNCTIONS='[\"_main\"]' -sEXPORTED_RUNTIME_METHODS=[ccall,cwrap] -sALLOW_MEMORY_GROWTH";
             
         } else if (target == "android") {

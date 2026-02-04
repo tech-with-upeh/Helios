@@ -10,8 +10,6 @@
 #include <vector>
 #include <unordered_map>
 
-using namespace std;
-
 
 WebEngine::WebEngine()
     : idcount(1), 
@@ -19,11 +17,11 @@ WebEngine::WebEngine()
 }
 
 
-string WebEngine::pyxtocpp_type(enum NODE_TYPE type, AST_NODE* node) {
+std::string WebEngine::pyxtocpp_type(enum NODE_TYPE type, AST_NODE* node) {
     switch (type)
     {
         case NODE_BINARY_OP: {
-            string lhs = pyxtocpp_type(node->SUB_STATEMENTS[0]->TYPE, node->SUB_STATEMENTS[0]); 
+            std::string lhs = pyxtocpp_type(node->SUB_STATEMENTS[0]->TYPE, node->SUB_STATEMENTS[0]); 
             return lhs;
         }
         case NODE_BOOL:
@@ -31,9 +29,9 @@ string WebEngine::pyxtocpp_type(enum NODE_TYPE type, AST_NODE* node) {
         case NODE_INT:
             return "int";
         case NODE_STRING:
-            return "string";
+            return "std::string";
         case NODE_DICT:
-            return "unordered_map<string,string>";
+            return "unordered_map<std::string,std::string>";
         case NODE_TOFLOAT:
             return "float";
         case NODE_TOINT:
@@ -68,7 +66,7 @@ bool WebEngine::gen(AST_NODE *root) {
 
     // Top-level: convert each root sub-statement into C++ statements
     for (auto &stmt : root->SUB_STATEMENTS) {
-        string out = HandleAst(stmt, "root", true, false);
+        std::string out = HandleAst(stmt, "root", true, false);
         if (!out.empty()) {
             codebuffer << out << "\n";
         }
@@ -86,9 +84,9 @@ bool WebEngine::gen(AST_NODE *root) {
 }
 
 
-// Escape C-style string literal (for embedding fixed literal pieces in generated C++ code)
-string WebEngine::escape_for_cpp_literal(const string &in) {
-    string out;
+// Escape C-style std::string literal (for embedding fixed literal pieces in generated C++ code)
+std::string WebEngine::escape_for_cpp_literal(const std::string &in) {
+    std::string out;
     out.reserve(in.size()*2);
     for (char c : in) {
         switch (c) {
@@ -104,12 +102,12 @@ string WebEngine::escape_for_cpp_literal(const string &in) {
 }
 
 // Helper to create a C++ literal: "\"...\""
-string WebEngine::cpp_literal(const string &s) {
+std::string WebEngine::cpp_literal(const std::string &s) {
     return "\"" + escape_for_cpp_literal(s) + "\"";
 }
 
-string WebEngine::exprForNode(AST_NODE *p) {
-    if (!p) return string("/*null*/");
+std::string WebEngine::exprForNode(AST_NODE *p) {
+    if (!p) return std::string("/*null*/");
 
     switch (p->TYPE) {
         case NODE_STRING:
@@ -122,9 +120,9 @@ string WebEngine::exprForNode(AST_NODE *p) {
             return HandleAst(p, "root", true);
         case NODE_BOOL:
         case NODE_BINARY_OP: {
-            string lhs = exprForNode(p->SUB_STATEMENTS[0]);
-            string rhs = exprForNode(p->SUB_STATEMENTS[1]);
-            string op = *(p->value);
+            std::string lhs = exprForNode(p->SUB_STATEMENTS[0]);
+            std::string rhs = exprForNode(p->SUB_STATEMENTS[1]);
+            std::string op = *(p->value);
             return "(" + lhs + " " + op + " " + rhs + ")";
         }
 
@@ -135,8 +133,8 @@ string WebEngine::exprForNode(AST_NODE *p) {
 
         */
         case NODE_UNARY_OP: {
-            string operand = exprForNode(p->CHILD);
-            string op = *(p->value);
+            std::string operand = exprForNode(p->CHILD);
+            std::string op = *(p->value);
             
             return operand  + op ;
         }
@@ -145,13 +143,13 @@ string WebEngine::exprForNode(AST_NODE *p) {
     }
 }
 
-string WebEngine::MakePage(AST_NODE *p, string var, bool firstpage) {
+std::string WebEngine::MakePage(AST_NODE *p, std::string var, bool firstpage) {
             statevars.clear();
-            string varid = var;
-            stringstream ss;
+            std::string varid = var;
+            std::stringstream ss;
             filebuffer << "\nauto "+varid+ " = make_shared<VPage>();\n";
             ss << "\t"+varid+"->builder = [&";
-            vector<string> stylesheetimports;
+            vector<std::string> stylesheetimports;
             if (!variable_buffer.empty()) {
                 for (const auto &pair : variable_buffer) {
                     if (pair.second == true) {
@@ -201,7 +199,7 @@ string WebEngine::MakePage(AST_NODE *p, string var, bool firstpage) {
             }
             if (titleArg) {
                 
-                if (titleArg->TYPE == NODE_STRING) {
+                if (titleArg->TYPE == NODE_std::string) {
                     ss << "\t\tpage.setTitle(\"" << *(titleArg->value) << "\");\n"; 
                 } else if (titleArg->TYPE == NODE_VARIABLE) {
                     ss << "\t\tpage.setTitle(" << *(titleArg->value) << ");\n"; 
@@ -279,10 +277,10 @@ string WebEngine::MakePage(AST_NODE *p, string var, bool firstpage) {
             return ss.str();
         }
 
-string WebEngine::MakeElement(AST_NODE *p, string parent, string el,string eltype, bool isvar) {
+std::string WebEngine::MakeElement(AST_NODE *p, std::string parent, std::string el,std::string eltype, bool isvar) {
     
     
-    string varid = eltype+"_" + to_string(idcount);
+    std::string varid = eltype+"_" + to_string(idcount);
     if (isvar)
     {
         varid = eltype;
@@ -456,7 +454,7 @@ string WebEngine::MakeElement(AST_NODE *p, string parent, string el,string eltyp
         for (auto &kv : dict->SUB_STATEMENTS) {
             AST_NODE *keyNode = kv->SUB_STATEMENTS[0];
             AST_NODE *valNode = kv->SUB_STATEMENTS[1];
-            string key = (keyNode->TYPE == NODE_STRING) ? *(keyNode->value) : *(keyNode->value);
+            std::string key = (keyNode->TYPE == NODE_STRING) ? *(keyNode->value) : *(keyNode->value);
 
             // Build page.bodyAttrs["style"] = "background-color:#f0f0f0; font-family:Arial,sans-serif; margin:20px;";
             if (valNode->TYPE == NODE_STRING) {
@@ -488,11 +486,11 @@ string WebEngine::MakeElement(AST_NODE *p, string parent, string el,string eltyp
     return ss.str();
 }
 
-string WebEngine::MakeConversion(AST_NODE *p, NODE_TYPE type, bool isroot) {
+std::string WebEngine::MakeConversion(AST_NODE *p, NODE_TYPE type, bool isroot) {
     switch (type) {
         case NODE_TOSTR: {
-            stringstream ss;
-            ss << "to_string(";
+            std::stringstream ss;
+            ss << "to_std::string(";
             ss << exprForNode(p->CHILD);
             ss << ")";
             if(isroot) {
@@ -526,8 +524,8 @@ string WebEngine::MakeConversion(AST_NODE *p, NODE_TYPE type, bool isroot) {
     return "";
 }
 
-string WebEngine::MakeDraw(AST_NODE *p,bool isroot, string parent) {
-    stringstream ss;
+std::string WebEngine::MakeDraw(AST_NODE *p,bool isroot, std::string parent) {
+    std::stringstream ss;
     if (isroot) {
         // Canvas2D ctx("id");
         ss << "Canvas2D ";
@@ -543,8 +541,8 @@ string WebEngine::MakeDraw(AST_NODE *p,bool isroot, string parent) {
     return ss.str();
 }
 
-string WebEngine::makeMath(AST_NODE *p, NODE_TYPE nodetype) {
-    stringstream mathstr;
+std::string WebEngine::makeMath(AST_NODE *p, NODE_TYPE nodetype) {
+    std::stringstream mathstr;
     // std::cout << cos(23.56) << sin(34) << tan(234) << sqrt(54) << pow(12, 2);
     switch (nodetype)
     {
@@ -579,7 +577,7 @@ string WebEngine::makeMath(AST_NODE *p, NODE_TYPE nodetype) {
     return mathstr.str();
 }
 
-string WebEngine::HandleAst(AST_NODE *p, string parent, bool funcdecl, bool fromui) { 
+std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl, bool fromui) { 
     if (!p) return "";
         switch (p->TYPE) {
         case NODE_VARIABLE: {
@@ -587,7 +585,7 @@ string WebEngine::HandleAst(AST_NODE *p, string parent, bool funcdecl, bool from
             if (!p->CHILD) {
                 // bare variable reference (as statement? unlikely). Return empty.
                 
-                    stringstream ss;
+                    std::stringstream ss;
                     if (find(statevars.begin(), statevars.end(), *(p->value)) != statevars.end())
                     {
                         ss << *(p->value) << "->get()";
@@ -608,20 +606,20 @@ string WebEngine::HandleAst(AST_NODE *p, string parent, bool funcdecl, bool from
                 if (find(statevars.begin(), statevars.end(), *(p->value)) != statevars.end())
                 {
                     // state variable assignment
-                    string varName = *(p->value);
-                    string expr = exprForNode(p->CHILD);
+                    std::string varName = *(p->value);
+                    std::string expr = exprForNode(p->CHILD);
                     return "\t" + varName + "->set(" + expr + ");";
                 }
                 else
                 {
-                        string varbufName = *(p->value);
+                        std::string varbufName = *(p->value);
                     
                     if (!fromui) {
                         variable_buffer[varbufName] = false;
                     }
                     if (dtype == NODE_DICT) {
                         // create unordered_map and insert key-values
-                        string varName = *(p->value);
+                        std::string varName = *(p->value);
                         stringstream ss;
                         ss << "    unordered_map<string,string> " << varName << ";\n";
                         for (auto &kv : p->CHILD->SUB_STATEMENTS) {
@@ -630,11 +628,11 @@ string WebEngine::HandleAst(AST_NODE *p, string parent, bool funcdecl, bool from
                             AST_NODE *valN = kv->SUB_STATEMENTS[1];
 
                             // keys are typically strings or ids; treat as string literal
-                            string keyLiteral = (keyN->TYPE == NODE_STRING) ? *(keyN->value) : *(keyN->value);
-                            string keyCpp = cpp_literal(keyLiteral);
+                            std::string keyLiteral = (keyN->TYPE == NODE_STRING) ? *(keyN->value) : *(keyN->value);
+                            std::string keyCpp = cpp_literal(keyLiteral);
 
-                            // value: if string -> literal; if variable -> variable name expression; else -> expr
-                            string valExpr;
+                            // value: if std::string -> literal; if variable -> variable name expression; else -> expr
+                            std::string valExpr;
                             if (valN->TYPE == NODE_STRING) {
                                 valExpr = cpp_literal(*(valN->value));
                             } else {
@@ -645,18 +643,18 @@ string WebEngine::HandleAst(AST_NODE *p, string parent, bool funcdecl, bool from
                         }
                         return ss.str();
                     } else if (dtype == NODE_page) {
-                        string varName = *(p->value);
+                        std::string varName = *(p->value);
                         return MakePage(p->CHILD, varName);
-                    } else if (dtype == NODE_VIEW || dtype == NODE_TEXT || dtype == NODE_IMAGE || dtype == NODE_INPUT) {
-                        string el = "div";
-                        string eltype = *(p->value);
+                    } else if (dtype == NODE_VIEW || dtype == HELIOS_NODE_TEXT || dtype == NODE_IMAGE || dtype == NODE_INPUT) {
+                        std::string el = "div";
+                        std::string eltype = *(p->value);
                         switch (dtype)
                         {
                         case NODE_VIEW:
                             el = "div";
                             
                             break;
-                        case NODE_TEXT:
+                        case HELIOS_NODE_TEXT:
                             el = "p";
                             
                             break;
@@ -685,9 +683,9 @@ string WebEngine::HandleAst(AST_NODE *p, string parent, bool funcdecl, bool from
                     }
                     else {
                         // simple assignment: type name = expr;
-                        string varName = *(p->value);
-                        string expr = exprForNode(p->CHILD);
-                        string ctype = pyxtocpp_type(p->CHILD->TYPE, p->CHILD);
+                        std::string varName = *(p->value);
+                        std::string expr = exprForNode(p->CHILD);
+                        std::string ctype = pyxtocpp_type(p->CHILD->TYPE, p->CHILD);
                         if (ctype == "ERROR") ctype = "auto";
                         return "    " + ctype + " " + varName + " = " + expr + ";";
                     }
@@ -771,29 +769,29 @@ string WebEngine::HandleAst(AST_NODE *p, string parent, bool funcdecl, bool from
             return MakePage(p, "page_"+to_string(pagecount));
         } case NODE_VIEW: {
             return MakeElement(p, parent, "div", "view");
-        } case NODE_TEXT: {
+        } case HELIOS_NODE_TEXT: {
             return MakeElement(p, parent, "p", "text");
         } case NODE_IMAGE: {
             return MakeElement(p, parent, "img", "img");
         } case NODE_SETSTATE: {
-            string varname = *(p->value);
-            string ctype = pyxtocpp_type(p->CHILD->TYPE, p->CHILD);
+            std::string varname = *(p->value);
+            std::string ctype = pyxtocpp_type(p->CHILD->TYPE, p->CHILD);
             // auto counter = make_shared<appstate::State<auto>>("counter", 0);
-            string makeendvar;
+            std::string makeendvar;
             if (ctype == "string") {
                 makeendvar = "\""+  *(p->CHILD->value) +"\"";
             } else {
                 makeendvar =  *(p->CHILD->value);
             }
             stringstream ss;
-            string endvar = ">>(\""+ varname +"\"," + makeendvar + ");";
+            std::string endvar = ">>(\""+ varname +"\"," + makeendvar + ");";
             ss << "\n\tauto " << varname << " = make_shared<appstate::State<" << ctype << endvar;
             statevars.push_back(varname);
             return ss.str();
         }
         case NODE_STYLESHEET: {
-            stringstream ss;
-            ss << "\tstring " << *(p->value) << " = R\"(\n\t";
+            std::stringstream ss;
+            ss << "\tstd::string " << *(p->value) << " = R\"(\n\t";
             bool isuniversal = false;
             if(p->CHILD) {
                 isuniversal = true;
@@ -1033,7 +1031,7 @@ string WebEngine::HandleAst(AST_NODE *p, string parent, bool funcdecl, bool from
     }
 }
 // Write file to disk
-bool WebEngine::makefile(const string &directoryPath, const string &filebuffer) {
+bool WebEngine::makefile(const std::string &directoryPath, const std::string &filebuffer) {
     try {
         filesystem::path p(directoryPath);
         if (!p.parent_path().empty() && !filesystem::exists(p.parent_path())) {

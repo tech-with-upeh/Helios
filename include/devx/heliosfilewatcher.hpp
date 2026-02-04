@@ -1,99 +1,73 @@
-#include <boost/asio.hpp>
+#ifndef __FWATCHER_H
+#define __FWATCHER_H
+
 #include <filesystem>
-#include <unordered_map>
-#include <chrono>
+#include <fstream>
 #include <iostream>
-#include <vector>
-#include <memory>
+#include <thread>
+#include <atomic>
+#include <chrono>
+#include <unordered_map>
+#include <functional>
+#include <mutex>
 
 namespace fs = std::filesystem;
-using namespace std::chrono_literals;
 
-class FileWatcher : public std::enable_shared_from_this<FileWatcher> {
-    fs::path dir_;
-    boost::asio::io_context& ioc_;
-    boost::asio::steady_timer timer_;
-    std::unordered_map<fs::path, fs::file_time_type> last_write_;
-    std::function<void()> on_change_;
-    std::string extension_;
-
-    boost::asio::steady_timer throttle_timer_;
-    bool cooling_down_ = false;
-
+/* ================= FILE WATCHER ================= */
+class FileWatcher {
 public:
-    FileWatcher(boost::asio::io_context& ioc, fs::path dir,
-                const std::string& extension,
-                std::function<void()> on_change)
-        : dir_(std::move(dir)),
-          ioc_(ioc),
-          timer_(ioc),
-          throttle_timer_(ioc),
-          on_change_(on_change),
-          extension_(extension)
-    {}
+    FileWatcher(std::string path, std::string ext, std::function<void()> cb)
+        : root_(std::move(path)), ext_(std::move(ext)), callback_(std::move(cb)) {}
 
     void start() {
-        scan();
-        poll();
+        running_ = true;
+        std::thread([this]{ loop(); }).detach();
+    }
+
+    void stop() {
+        running_ = false;
     }
 
 private:
-    void scan() {
-        for (auto& entry : fs::recursive_directory_iterator(dir_)) {
-            if (fs::is_regular_file(entry) && entry.path().extension() == extension_) {
-                last_write_[entry.path()] = fs::last_write_time(entry);
-            }
-        }
-    }
+    void loop() {
+        std::unordered_map<std::string, fs::file_time_type> last_write;
+        bool cooling_down = false;
 
-    void poll() {
-        timer_.expires_after(500ms);
-        timer_.async_wait([self = shared_from_this()](const boost::system::error_code&) {
+        while (running_) {
             bool changed = false;
 
-            for (auto& entry : fs::recursive_directory_iterator(self->dir_)) {
-                if (!fs::is_regular_file(entry) ||
-                    entry.path().extension() != self->extension_)
-                    continue;
+            for (auto& entry : fs::recursive_directory_iterator(root_)) {
+                if (!entry.is_regular_file()) continue;
+                if (entry.path().extension() != ext_) continue;
 
-                auto path = entry.path();
-                auto write_time = fs::last_write_time(path);
+                auto path = entry.path().string();
+                auto write_time = fs::last_write_time(entry);
 
-                if (!self->last_write_.contains(path) ||
-                    self->last_write_[path] != write_time)
-                {
-                    std::cout << "[FileWatcher] changed: " << path << "\n";
-                    self->last_write_[path] = write_time;
+                if (!last_write.contains(path) || last_write[path] != write_time) {
+                    last_write[path] = write_time;
                     changed = true;
                 }
             }
 
-            if (changed) {
-                self->maybe_fire();
+            if (changed && !cooling_down) {
+                if (callback_) callback_();
+                cooling_down = true;
+
+                // cooldown to prevent memory spike
+                std::thread([&cooling_down]{
+                    std::this_thread::sleep_for(std::chrono::seconds(2));
+                    cooling_down = false;
+                }).detach();
             }
 
-            self->poll();
-        });
-    }
-
-    void maybe_fire() {
-        if (cooling_down_)
-            return; // ignore changes during cooldown
-
-        // Fire immediately
-        if (on_change_) {
-            net::post(ioc_, [self = shared_from_this()] {
-                if (self->on_change_) self->on_change_();
-            });
-
+            std::this_thread::sleep_for(std::chrono::milliseconds(300));
         }
-
-        // Start cooldown timer
-        cooling_down_ = true;
-        throttle_timer_.expires_after(2s);
-        throttle_timer_.async_wait([self = shared_from_this()](const boost::system::error_code& ec) {
-            if (ec) return;
-            self->cooling_down_ = false; // allow next change
-        });
     }
+
+    std::string root_;
+    std::string ext_;
+    std::function<void()> callback_;
+    std::atomic<bool> running_{false};
 };
+
+#endif

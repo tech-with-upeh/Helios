@@ -1,7 +1,8 @@
 {
   "dependencies": [
+    "boost-beast",
     "fmt",
     "openssl",
-    "boost-beast"
+    "uwebsockets"
   ]
 }

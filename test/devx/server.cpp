@@ -43,14 +43,12 @@ void http_session::run() {
     http::async_read(socket_, buffer_, req_,
         [self = shared_from_this()](beast::error_code ec, std::size_t) {
          
+            self->handle();
             self->timer_.cancel();  // Cancel with error code to not throw
-            
             if (ec) {
                 std::cerr << "Read error: " << ec.message() << "\n";
                 return;  // Let session die naturally
-            }
-            
-            self->handle();
+            } 
         });
 }
 

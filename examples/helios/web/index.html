@@ -12,10 +12,10 @@
 
                             init() {
                                 const protocol = location.protocol === "https:" ? "wss" : "ws";
-                                this.ws = new WebSocket(`${protocol}://${location.host}`);
+                                this.ws = new WebSocket(`${protocol}://${location.host}/ws`);
 
                                 this.ws.onmessage = (e) => {
-                                    if (e.data === "reload") location.reload();
+                                    if (e.data === "r") location.reload();
                                 };
                             },
 
