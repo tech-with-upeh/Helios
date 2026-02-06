@@ -15,7 +15,7 @@ enum VarType {
     TYPE_DICT,
 };
 
-string vartypestr(VarType type);
+std::string vartypestr(VarType type);
 
 struct VarInfo {
     VarType type;
@@ -23,7 +23,7 @@ struct VarInfo {
 };
 
 struct PageInfo {
-    string title;
+    std::string title;
     bool index;
 };
 

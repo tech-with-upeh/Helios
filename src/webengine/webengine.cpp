@@ -199,7 +199,7 @@ std::string WebEngine::MakePage(AST_NODE *p, std::string var, bool firstpage) {
             }
             if (titleArg) {
                 
-                if (titleArg->TYPE == NODE_std::string) {
+                if (titleArg->TYPE == NODE_STRING) {
                     ss << "\t\tpage.setTitle(\"" << *(titleArg->value) << "\");\n"; 
                 } else if (titleArg->TYPE == NODE_VARIABLE) {
                     ss << "\t\tpage.setTitle(" << *(titleArg->value) << ");\n"; 
@@ -490,7 +490,7 @@ std::string WebEngine::MakeConversion(AST_NODE *p, NODE_TYPE type, bool isroot) 
     switch (type) {
         case NODE_TOSTR: {
             std::stringstream ss;
-            ss << "to_std::string(";
+            ss << "to_string(";
             ss << exprForNode(p->CHILD);
             ss << ")";
             if(isroot) {

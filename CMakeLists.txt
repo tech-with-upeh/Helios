@@ -4,7 +4,7 @@ project(helios LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(unofficial-uwebsockets CONFIG REQUIRED)
+
 
 add_executable(helios
     main.cpp
@@ -26,12 +26,18 @@ target_include_directories(helios
 
 
 if(WIN32)
-        target_link_libraries(helios PRIVATE
-            ws2_32
-            mswsock
-            unofficial::uwebsockets::uwebsockets
+  find_package(unofficial-uwebsockets CONFIG REQUIRED)
+  target_link_libraries(helios PRIVATE
+    ws2_32
+    mswsock
+    unofficial::uwebsockets::uwebsockets
         )
-endif() 
+endif()
+
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Android")
+  find_package(uwebsockets REQUIRED)
+  target_link_libraries(helios PRIVATE uwebsockets::uwebsockets)
+endif()
 
 # Optional: warnings (safe)
 if (MSVC)   

@@ -1,5 +1,5 @@
 {
-  "version": 2,
+  "version": 4,
   "configurePresets": [
     {
       "name": "default",
@@ -8,5 +8,11 @@
         "VCPKG_ROOT": "C:/vcpkg"
       }
     }
-  ]
+  ],
+  "vendor": {
+        "conan": {}
+    },
+    "include": [
+        "build/build/Release/generators/CMakePresets.json"
+    ]
 }

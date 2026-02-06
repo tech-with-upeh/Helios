@@ -14,7 +14,7 @@ auto page_1 = make_shared<VPage>();
 int main() {
 	Router::add("/",page_1);
 	page_1->builder = [&](VPage& page) {
-		page.setTitle("Helios ~ Your Full Stack FrameWork");
+		page.setTitle("Helios ~ Your Full Stack FrmeWork");
 		page.bodyAttrs["style"] = "background-color:black;color:white;padding:0px;margin:0px;";
 		page.addScript("anim.js");
 		page.addStylesheet("./global.css");

@@ -65,9 +65,9 @@ enum NODE_TYPE {
 
 struct AST_NODE {
     enum NODE_TYPE TYPE;
-    string *value = nullptr;
+    std::string*value = nullptr;
     AST_NODE *CHILD = nullptr;
-    vector<AST_NODE *> SUB_STATEMENTS;
+    std::vector<AST_NODE *> SUB_STATEMENTS;
     int lineno;
     int charno;
     std::string sourceLine;
@@ -78,7 +78,7 @@ std::string nodetostr(enum NODE_TYPE tYPE);
 
 class Parser {
 public:
-    Parser(vector<Token *> tokens);
+    Parser(std::vector<Token *> tokens);
 
     // ---------- Error Handler ----------
     void parserError(const std::string &message);
@@ -149,7 +149,7 @@ private:
     int limit;
     int index;
     Token *current;
-    vector<Token *> parserTokens;
+    std::vector<Token *> parserTokens;
 };
 
 #endif

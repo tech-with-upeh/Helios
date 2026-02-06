@@ -6,7 +6,7 @@
 #include <regex>
 
 
-string nodetostr(enum NODE_TYPE tYPE) {
+std::string nodetostr(enum NODE_TYPE tYPE) {
     switch (tYPE) {
         case NODE_ROOT: return "ROOT"; break;
         case NODE_VARIABLE: return "VARIABLE"; break;
@@ -61,7 +61,7 @@ string nodetostr(enum NODE_TYPE tYPE) {
 }
 
 
-Parser::Parser(vector<Token *> tokens) 
+Parser::Parser(std::vector<Token *> tokens) 
 {
     parserTokens = tokens,
     limit = parserTokens.size(),
@@ -79,7 +79,7 @@ Parser::Parser(vector<Token *> tokens)
                   << ", column " << current->charno << "\n";
         std::cerr << "  " << current->lineno << " | " << current->sourceLine << "\n";
         std::cerr << "    ";
-        for (int i = 1; i < (current->charno+to_string(current->lineno).length()+1); ++i)
+        for (int i = 1; i < (current->charno+std::to_string(current->lineno).length()+1); ++i)
             std::cerr << " ";
         for (int i = 0; i < current->value.length() + 2; i++)
         {
@@ -96,7 +96,7 @@ Parser::Parser(vector<Token *> tokens)
                   << ", column " << current->charno << "\n";
         std::cout << "  " << current->lineno << " | " << current->sourceLine << "\n";
         std::cout << "    ";
-        for (int i = 1; i < (current->charno+to_string(current->lineno).length()+1); ++i)
+        for (int i = 1; i < (current->charno+std::to_string(current->lineno).length()+1); ++i)
             std::cout << " ";
         for (int i = 0; i < current->value.length() + 2; i++)
         {
@@ -142,7 +142,7 @@ Parser::Parser(vector<Token *> tokens)
     }
 
     AST_NODE *Parser::parseID() {
-        string *buffer = &current->value;
+        std::string *buffer = &current->value;
         proceed(TOKEN_ID);
 
         if (current->TYPE == TOKEN_NEWLINE || current->TYPE == TOKEN_EOF)
@@ -159,12 +159,12 @@ Parser::Parser(vector<Token *> tokens)
         
         if (current->TYPE == TOKEN_INCREMENT || current->TYPE == TOKEN_DECREMENT) {
             // Handle postfix i++ or i--
-            string op = current->value;
+            std::string op = current->value;
             proceed(current->TYPE);
 
             AST_NODE *node = new AST_NODE();
             node->TYPE = NODE_UNARY_OP;
-            node->value = new string(op);
+            node->value = new std::string(op);
 
             AST_NODE *varNode = new AST_NODE();
             varNode->TYPE = NODE_VARIABLE;
@@ -202,7 +202,7 @@ Parser::Parser(vector<Token *> tokens)
         return node;
     }
 
-    AST_NODE *Parser::parseInstancecall(string *buffer) {
+    AST_NODE *Parser::parseInstancecall(std::string *buffer) {
         AST_NODE *node =  new AST_NODE();;
         node->TYPE = NODE_INSTANCE;
         node->value = buffer;
@@ -379,7 +379,7 @@ Parser::Parser(vector<Token *> tokens)
                     parserError("Can onnly convert str to number '"+ current->value + "'");
                 }
                 if (current->TYPE == TOKEN_STRING) {
-                    const regex pattern("^[0-9]*\\.?[0-9]+$|^[0-9]+\\.?[0-9]*$");
+                    const std::regex pattern("^[0-9]*\\.?[0-9]+$|^[0-9]+\\.?[0-9]*$");
 
                     if (!regex_match(current->value, pattern) || current->value[0] == '.') {
                         parserError("String Doesnt Contain Number '"+ current->value + "'");
@@ -423,7 +423,7 @@ Parser::Parser(vector<Token *> tokens)
         
         // prefix ++ / --
         if (current->TYPE == TOKEN_INCREMENT || current->TYPE == TOKEN_DECREMENT) {
-            string op = current->value;
+            std::string op = current->value;
             proceed(current->TYPE);
 
             if (current->TYPE != TOKEN_ID)
@@ -431,7 +431,7 @@ Parser::Parser(vector<Token *> tokens)
 
             AST_NODE *node = new AST_NODE();
             node->TYPE = NODE_UNARY_OP;
-            node->value = new string(op);
+            node->value = new std::string(op);
 
             AST_NODE *varNode = new AST_NODE();
             varNode->TYPE = NODE_VARIABLE;
@@ -508,17 +508,17 @@ Parser::Parser(vector<Token *> tokens)
         }
 
         if (current->TYPE == TOKEN_ID) {
-            string *varName = &current->value;
+            std::string *varName = &current->value;
             proceed(TOKEN_ID);
 
             // check for postfix i++ or i--
             if (current->TYPE == TOKEN_INCREMENT || current->TYPE == TOKEN_DECREMENT) {
-                string op = current->value;
+                std::string op = current->value;
                 proceed(current->TYPE);
 
                 AST_NODE *node = new AST_NODE();
                 node->TYPE = NODE_UNARY_OP;
-                node->value = new string(op);
+                node->value = new std::string(op);
 
                 AST_NODE *varNode = new AST_NODE();
                 varNode->TYPE = NODE_VARIABLE;
@@ -562,12 +562,12 @@ Parser::Parser(vector<Token *> tokens)
     AST_NODE *Parser::parseTerm() {
         AST_NODE *node = parseFactor();
         while (current->value == "*" || current->value == "/") {
-            string op = current->value;
+            std::string op = current->value;
             proceed(current->TYPE);
             AST_NODE *right = parseFactor();
             AST_NODE *newNode = new AST_NODE();
             newNode->TYPE = NODE_BINARY_OP;
-            newNode->value = new string(op);
+            newNode->value = new std::string(op);
             newNode->SUB_STATEMENTS = {node, right};
             node = newNode;
         }
@@ -581,12 +581,12 @@ Parser::Parser(vector<Token *> tokens)
     AST_NODE *Parser::parseExpression() {
         AST_NODE *node = parseTerm();
         while (current->value == "+" || current->value == "-") {
-            string op = current->value;
+            std::string op = current->value;
             proceed(current->TYPE);
             AST_NODE *right = parseTerm();
             AST_NODE *newNode = new AST_NODE();
             newNode->TYPE = NODE_BINARY_OP;
-            newNode->value = new string(op);
+            newNode->value = new std::string(op);
             newNode->SUB_STATEMENTS = {node, right};
             node = newNode;
         }
@@ -604,12 +604,12 @@ Parser::Parser(vector<Token *> tokens)
             current->TYPE == TOKEN_GT || current->TYPE == TOKEN_LT ||
             current->TYPE == TOKEN_GTE || current->TYPE == TOKEN_LTE ||
             current->TYPE == TOKEN_NOTOP) {
-            string op = current->value;
+            std::string op = current->value;
             proceed(current->TYPE);
             AST_NODE *right = parseExpression();
             AST_NODE *newNode = new AST_NODE();
             newNode->TYPE = NODE_BOOL;
-            newNode->value = new string(op);
+            newNode->value = new std::string(op);
             newNode->SUB_STATEMENTS = {node, right};
             node = newNode;
         }
@@ -625,16 +625,16 @@ Parser::Parser(vector<Token *> tokens)
         if (current->TYPE != TOKEN_ID)
             parserError("Expected identifier in increment section");
 
-        string *idName = &current->value;
+        std::string *idName = &current->value;
         proceed(TOKEN_ID);
 
         AST_NODE *node = new AST_NODE();
 
         if (current->TYPE == TOKEN_INCREMENT || current->TYPE == TOKEN_DECREMENT) {
-            string op = current->value;
+            std::string op = current->value;
             proceed(current->TYPE);
             node->TYPE = NODE_UNARY_OP;
-            node->value = new string(op);
+            node->value = new std::string(op);
 
             AST_NODE *varNode = new AST_NODE();
             varNode->TYPE = NODE_VARIABLE;
@@ -874,7 +874,7 @@ Parser::Parser(vector<Token *> tokens)
     AST_NODE *Parser::parseBOOL(enum NODE_TYPE Tokentype) {
         AST_NODE *node = new AST_NODE();
             node->TYPE = Tokentype;
-            node->value = new string(current->value);
+            node->value = new std::string(current->value);
             node->charno = current->charno;
             node->charno = current->charno;
             node->lineno = current->lineno;
@@ -885,7 +885,7 @@ Parser::Parser(vector<Token *> tokens)
 
 
      // ---------- FUNCTION CALL ----------
-    AST_NODE *Parser::parseFunctionCall(string *funcName, NODE_TYPE tyPE) {
+    AST_NODE *Parser::parseFunctionCall(std::string *funcName, NODE_TYPE tyPE) {
         AST_NODE *callNode = new AST_NODE();
         callNode->TYPE = tyPE;
         callNode->value = funcName;
@@ -906,7 +906,7 @@ Parser::Parser(vector<Token *> tokens)
     }
     
     // ---------- FUNCTION DECLARATION ----------
-    AST_NODE *Parser::parseFunctionDecl(bool callback, string *funcname, int *noargs) {
+    AST_NODE *Parser::parseFunctionDecl(bool callback, std::string *funcname, int *noargs) {
        AST_NODE *funcNode = new AST_NODE();
        funcNode->TYPE = NODE_FUNCTION_DECL;
         if (!callback) {
@@ -914,7 +914,7 @@ Parser::Parser(vector<Token *> tokens)
             if (current->TYPE != TOKEN_ID) {
                 parserError("Expected function name after 'def'"); 
             }
-            string *funcName = &current->value;
+            std::string *funcName = &current->value;
             proceed(TOKEN_ID);  
             funcNode->value = funcName;
         } else {
@@ -960,7 +960,7 @@ Parser::Parser(vector<Token *> tokens)
         }
         if (noargs != NULL) {
                 if(foundargs != *(noargs)) {
-                    parserError("Function '"+ *(funcname) + "' expects " + to_string(*(noargs)) + " but got " + to_string(foundargs) );
+                    parserError("Function '"+ *(funcname) + "' expects " + std::to_string(*(noargs)) + " but got " + std::to_string(foundargs) );
                 }
         }
         funcNode->CHILD = args;
@@ -1053,7 +1053,7 @@ Parser::Parser(vector<Token *> tokens)
                         parserError("Route cannot be an empty string");
                     }
 
-                    string fixroute = current->value;
+                    std::string fixroute = current->value;
                     char fwdr = '/';
                     if(current->value[0] != fwdr) {
                         
@@ -1101,7 +1101,7 @@ Parser::Parser(vector<Token *> tokens)
         return param;
     }
     AST_NODE *Parser::parsepage() {
-        string *funcName = &current->value;
+        std::string *funcName = &current->value;
         proceed(TOKEN_KEYWORD); // "page"
         
         AST_NODE *funcNode = new AST_NODE();
@@ -1131,7 +1131,7 @@ Parser::Parser(vector<Token *> tokens)
                 {
                     if (current->value == "style" || current->value == "route" || current->value == "id" || current->value == "cls") {
                         param->TYPE = NODE_STRING;
-                        param->value = new string("Create Helios App");
+                        param->value = new std::string("Create Helios App");
                         param->lineno = current->lineno;
                         param->sourceLine = current->sourceLine;
                         param->extra = current->extra;
@@ -1191,7 +1191,7 @@ Parser::Parser(vector<Token *> tokens)
     }
 
     AST_NODE *Parser::parseView(enum NODE_TYPE typw) {
-        string *funcName = &current->value;
+        std::string *funcName = &current->value;
         proceed(TOKEN_KEYWORD); // "View"
         
         AST_NODE *funcNode = new AST_NODE();
@@ -1256,7 +1256,7 @@ Parser::Parser(vector<Token *> tokens)
 
                 // Only allow certain parameter names
                 std::string paramName = current->value;
-                string* parammem = &current->value;
+                std::string* parammem = &current->value;
                 if (paramName != "style" && paramName != "cls" && paramName != "onclick" && paramName != "onlongpress" && paramName != "id" && paramName != "height" && paramName != "width") {
                     parserError("Unexpected parameter: " + paramName);
                 }
@@ -1334,7 +1334,7 @@ Parser::Parser(vector<Token *> tokens)
                     // onclick / onlongpress can be function identifier or inline function
                     if (current->TYPE == TOKEN_ID) {
                         // function call
-                        string *funcIdent = &current->value;
+                        std::string *funcIdent = &current->value;
                         proceed(current->TYPE);
                         param->CHILD = parseFunctionCall(funcIdent);
                     } else if (current->TYPE == TOKEN_KEYWORD && current->value == "def") {
@@ -1499,7 +1499,7 @@ Parser::Parser(vector<Token *> tokens)
         if (current->TYPE == TOKEN_ANDSYM) {
             styleNode->CHILD = new AST_NODE();
             styleNode->CHILD->TYPE = NODE_BOOL;
-            styleNode->CHILD->value = new string("true");
+            styleNode->CHILD->value = new std::string("true");
             styleNode->CHILD->lineno = current->lineno;
                 styleNode->CHILD->sourceLine = current->sourceLine;
             styleNode->CHILD->extra = current->extra;
@@ -1524,7 +1524,7 @@ Parser::Parser(vector<Token *> tokens)
 
             // Top-level identifier
             if (current->TYPE == TOKEN_ID) {
-                string selector = current->value;
+                std::string selector = current->value;
             
 
                 if (selector == "media") {
@@ -1558,7 +1558,7 @@ Parser::Parser(vector<Token *> tokens)
                             selectorNode->extra = current->extra;
                             selectorNode->charno = current->charno;
 
-                            string innerSelector = current->value;
+                            std::string innerSelector = current->value;
                             proceed(TOKEN_ID);
                             selectorNode->CHILD = parseDict(true);
 
@@ -1666,7 +1666,7 @@ Parser::Parser(vector<Token *> tokens)
         proceed(TOKEN_LPAREN);
         proceed(TOKEN_RPAREN);
         if (current->TYPE == TOKEN_DOT) {
-            string* buf = new string("platform");
+            std::string* buf = new std::string("platform");
             ctx->CHILD= parseInstancecall(buf);
         }
         
@@ -1853,7 +1853,7 @@ Parser::Parser(vector<Token *> tokens)
             } else if (current->value == "canvas") {
                 return parseView(NODE_CANVAS);
             } else if (current->value == "go") {
-                string *funcIdent = &current->value;
+                std::string *funcIdent = &current->value;
                 proceed(current->TYPE);
                 return parseFunctionCall(funcIdent, NODE_GO);
             }else {
@@ -1871,9 +1871,9 @@ Parser::Parser(vector<Token *> tokens)
             parserError("Expected identifier after 'state'");
         }
         proceed(current->TYPE);
-        string val = current->value;
+        std::string val = current->value;
          proceed(TOKEN_ID);
-         node->value = new string(val);
+         node->value = new std::string(val);
         proceed(TOKEN_COLON);
         node->CHILD = parseComparison();
         node->charno = current->charno;
@@ -1893,9 +1893,9 @@ Parser::Parser(vector<Token *> tokens)
             parserError("Expected identifier after 'state'");
         }
 
-        string val = current->value;
+        std::string val = current->value;
          proceed(TOKEN_ID);
-         node->value = new string(val);
+         node->value = new std::string(val);
         proceed(TOKEN_COLON);
         node->CHILD = parseComparison();
         node->charno = current->charno;
@@ -1928,7 +1928,7 @@ Parser::Parser(vector<Token *> tokens)
         }
         else if (current->TYPE == TOKEN_ID) {
             if(current->value == "onmount") {
-                string *funcname = &current->value;
+                std::string *funcname = &current->value;
                 proceed(current->TYPE);
                 if(!ispage) {
                     parserError("Onmount life cycle can only be defined in a Page ");
@@ -1946,7 +1946,7 @@ Parser::Parser(vector<Token *> tokens)
             //     return parseFunctionDecl(true, funcname);
             // }
             if(current->value == "animatefps") {
-                string *funcname = &current->value;
+                std::string *funcname = &current->value;
                 proceed(current->TYPE);
                 if(!ispage) {
                     parserError("Onresize life cycle can only be defined in a Page ");
@@ -1956,7 +1956,7 @@ Parser::Parser(vector<Token *> tokens)
                 return parseFunctionDecl(true, funcname, n);
             }
             if(current->value == "listener") {
-                string *funcname = &current->value;
+                std::string *funcname = &current->value;
                 proceed(current->TYPE);
                 if(!ispage) {
                     parserError("Listener life cycle can only be defined in a Page ");

@@ -39,7 +39,7 @@ page("Helios ~ Your Full Stack FrmeWork", style={
             "user-select": "none",
             "cursor": "pointer"
         })
-        view("myicon", cls="fa-solid fa-caret-down") {}
+        text("reload")
     } 
 
 }

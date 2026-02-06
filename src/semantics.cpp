@@ -6,7 +6,7 @@
 #include <span>
 
 
-string vartypestr(VarType type) {
+ std::string  vartypestr(VarType type) {
     switch (type) {
         case TYPE_INT: return "INT"; break;
         case TYPE_STRING: return "STRING"; break;
@@ -77,7 +77,7 @@ void SemanticAnalyzer::parserError(const std::string &message, AST_NODE* current
                   << " at line " << current->lineno
                   << ", column " << current->charno << "\n";
         std::cerr << "  " << current->lineno << " | " << current->sourceLine << "\n";
-        for (int i = 1; i < (current->charno+to_string(current->lineno).length()+1); ++i)
+        for (int i = 1; i < (current->charno+std::to_string(current->lineno).length()+1); ++i)
             std::cerr << " ";
         for (int i = 0; i < current->value->length(); i++)
         {
@@ -119,7 +119,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                     {
                         if (node->value)
                         {
-                            if (*(node->value) != string("#"))
+                            if (*(node->value) !=  std::string("#"))
                             {
                                 VarType rhsType = checkNode(i->SUB_STATEMENTS[0]);
                             }
@@ -536,7 +536,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                     }
                 } else {
                     if (node->CHILD->SUB_STATEMENTS.size() != ch->second.args.size()) {
-                        parserError("'"+ *(node->CHILD->value) +"' was expecting '"+ to_string(ch->second.args.size()) +" arguments but got: " + to_string(node->CHILD->SUB_STATEMENTS.size()), node->CHILD);
+                        parserError("'"+ *(node->CHILD->value) +"' was expecting '"+ std::to_string(ch->second.args.size()) +" arguments but got: " + std::to_string(node->CHILD->SUB_STATEMENTS.size()), node->CHILD);
                     }
                     if (ch->second.isVariadic) {
                         if(node->CHILD->TYPE != NODE_FUNCTION_CALL) {
