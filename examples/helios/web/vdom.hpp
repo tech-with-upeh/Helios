@@ -10,7 +10,7 @@
 
 // -------------------- Forward declarations --------------------
 struct VPage;
-void renderPage(VPage& page);
+void renderPage(VPage& page, bool statechange=false);
 
 // -------------------- Global Page State --------------------
 namespace GlobalState {
@@ -198,6 +198,8 @@ struct VPage {
     std::vector<std::string> scripts;
     std::vector<std::string> stylesheets;
 
+
+
     
     // Helper methods
     VPage& setTitle(const std::string& newTitle) {
@@ -228,9 +230,9 @@ struct VPage {
     }
     
     // Render this page
-    void render() {
+    void render(bool statechange=false) {
         rebuild();
-        renderPage(*this);
+        renderPage(*this, statechange);
 
     }
     void onMount(std::function<void()> fn) {
@@ -685,7 +687,7 @@ inline void bindOnClick(VNode& node) {
 }
 
 // -------------------- Render Page --------------------
-inline void renderPage(VPage& page) {
+inline void renderPage(VPage& page, bool statechange) {
     // Set as current page for callbacks to access
     GlobalState::setCurrentPage(&page);
     
@@ -706,13 +708,17 @@ inline void renderPage(VPage& page) {
      }
     js_setTitle(page.title.c_str());
     js_insertCSS(page.stylesheet.c_str());
-    for(const auto& s : page.scripts) {
-        js_addscript(s.c_str(), true);
-    }
+    
+    if (statechange == false) {
+        for(auto& s : page.scripts) {
+            js_addscript(s.c_str(), true);
+        }
 
-    for(const auto& c : page.stylesheets) {
-        js_addscript(c.c_str());
+        for(auto& c : page.stylesheets) {
+            js_addscript(c.c_str(), false);
+        }
     }
+    
      
 
     

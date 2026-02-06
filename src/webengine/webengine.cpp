@@ -56,7 +56,7 @@ bool WebEngine::gen(AST_NODE *root) {
     filebuffer << R"(void updateUI() {
         // Re-render the current page
         if (GlobalState::getCurrentPage()) {
-            GlobalState::getCurrentPage()->render();
+            GlobalState::getCurrentPage()->render(true);
         }
     })";
 

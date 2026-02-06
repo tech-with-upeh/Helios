@@ -1,3 +1,7 @@
+#define WIN32_LEAN_AND_MEAN  // Strips bloat from windows.h
+#define NOMINMAX             // Prevents conflicts with std::min/max
+#include <windows.h> 
+
 #include <filesystem>
 #include <algorithm>
 #include <cstdlib>
@@ -20,20 +24,19 @@
 
 
 namespace fs = std::filesystem;
-using namespace std;
 
 
 Core::Core() {}
 
-string Core::getProjectRoot(const string& root, bool useroot) {
-    string file;
+std::string Core::getProjectRoot(const std::string& root, bool useroot) {
+    std::string file;
     if(useroot) {
         file = root + "/helios.config";
     } else {
         file = "helios.config";
     }
     ifstream config(file);
-    string line;
+    std::string line;
     if (config.is_open()) {
         while (getline(config, line)) {
             if (line.rfind("project_root=", 0) == 0) {
@@ -47,13 +50,13 @@ string Core::getProjectRoot(const string& root, bool useroot) {
     return "MyApp";
 }
 
-void Core::saveProjectRoot(const string& root) {
+void Core::saveProjectRoot(const std::string& root) {
     ofstream config(root+ "/helios.config");
     config << "project_root=" << root << "\n";
 }
 
-void Core::generateFiles(const vector<string>& targets, const string& pname) {
-    string root = getProjectRoot(pname, true);
+void Core::generateFiles(const std::vector<std::string>& targets, const std::string& pname) {
+    std::string root = getProjectRoot(pname, true);
     if (!fs::exists(root)) {
         cerr << "Trying to access root but doesnt exist" << endl;
         exit(1);
@@ -842,10 +845,10 @@ void Core::builder() {
     buffer << temp; 
     } 
     buffer << ' '; // EOF marker
-    string sourcecode = buffer.str();
+    std::string sourcecode = buffer.str();
     
     Lexer lexer(sourcecode);
-    vector<Token *> tokens = lexer.tokenize();
+    std::vector<Token *> tokens = lexer.tokenize();
     Parser parser(tokens);
     AST_NODE * root = parser.parse();
 
@@ -865,7 +868,7 @@ void Core::builder() {
     }
     //cout << "[Helios] Compiled Projects Successfully! [Helios]\n";
 
-    string cmd = "em++ web/generated.cpp -o web/main.js " 
+    std::string cmd = "em++ web/generated.cpp -o web/main.js " 
         "-sEXPORTED_FUNCTIONS=\"['_main','_invokeVNodeCallback','_js_insertHTML','_js_setTitle','_malloc','_free', '_handleRoute', '_animatefps', '_handleEvent', '_animatefps', '_handleEvent']\" "
         "-sEXPORTED_RUNTIME_METHODS=\"['ccall','cwrap','stringToUTF8','lengthBytesUTF8']\" "
         "-sALLOW_MEMORY_GROWTH=1 -sASSERTIONS=1 -w -sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE='$allocateUTF8'";
@@ -873,14 +876,14 @@ void Core::builder() {
 }
 
 
-void Core::devTarget(const vector<string>& targets, const string& pname) {
-    string root = getProjectRoot(pname);
+void Core::devTarget(const std::vector<std::string>& targets, const std::string& pname) {
+    std::string root = getProjectRoot(pname);
 
     if (!targets.empty()) {
-        string target = targets.at(0);
+        std::string target = targets.at(0);
         if (target == "web") {
             if(targets.size() > 1) {
-                string flag = targets.at(1);
+                std::string flag = targets.at(1);
                 cerr << "Unknown Flag: " << flag << endl;
                 exit(1);
             }
@@ -924,10 +927,10 @@ void Core::devTarget(const vector<string>& targets, const string& pname) {
                 app.ws<int>("/ws", {
                     .open = [](auto* ws) {
                         ws->subscribe("reload");
-                        std::cout << "WS connected & subscribed\n";
                     },
                     .message = [](auto* ws, std::string_view msg, uWS::OpCode) {
                         if (msg == "ping") ws->send("pong", uWS::OpCode::TEXT);
+                        std::cout << "Received message from client: " << msg << "\n";
                     }
                 });
 
@@ -942,19 +945,21 @@ void Core::devTarget(const vector<string>& targets, const string& pname) {
                     static FileWatcher watcher(
                         "./", ".ink",
                         [&]{
-                            std::cout << "Hot Reloading -->\n";
+                            std::cout << "Hot Reloading -->Wait for emcc to compile!- sorry! \n";
 
                             // Only one builder at a time
                             std::lock_guard<std::mutex> lock(build_mutex);
 
                             // simulate heavy work
                             std::this_thread::sleep_for(std::chrono::milliseconds(300));
-                            std::cout << "[builder] done\n";
 
+                            builder();
+
+                            std::cout << "Rebuild done!, Reloading clients...\n";
                             // broadcast reload safely in uWS thread
                             loop->defer([&app]{
                                 app.publish("reload", "r", uWS::OpCode::TEXT);
-                                std::cout << "Reload broadcasted\n";
+
                             });
                         }
                     );
@@ -972,7 +977,7 @@ void Core::devTarget(const vector<string>& targets, const string& pname) {
             
         } else if (target == "android") {
             if(targets.size() > 1) {
-                string flag = targets.at(1);
+                std::string flag = targets.at(1);
                 if(flag == "-b") {
                     cout << "[android] Building for development... \n";
                 } else {
@@ -988,7 +993,7 @@ void Core::devTarget(const vector<string>& targets, const string& pname) {
             cout << "[android] (to integrate with Gradle/ADB later)\n";
         } else if (target == "ios") {
             if(targets.size() > 1) {
-                string flag = targets.at(1);
+                std::string flag = targets.at(1);
                 if(flag == "-b") {
                     cout << "[ios] Building for development... \n";
                 } else {
@@ -1011,14 +1016,14 @@ void Core::devTarget(const vector<string>& targets, const string& pname) {
 
 
 // --------------------- Run Production ---------------------
-void Core::runTarget(const vector<string>& targets, const string& pname) {
-    string root = getProjectRoot(pname);
+void Core::runTarget(const std::vector<std::string>& targets, const std::string& pname) {
+    std::string root = getProjectRoot(pname);
 
     if (!targets.empty()) {
-        string target = targets.at(0);
+        std::string target = targets.at(0);
         if (target == "web") {
             if(targets.size() > 1) {
-                string flag = targets.at(1);
+                std::string flag = targets.at(1);
                 if(flag == "-b") {
                     builder();
                     cout << "[PRODUCTION][web] Compiling for production... [PRODUCTION]\n";
@@ -1030,12 +1035,12 @@ void Core::runTarget(const vector<string>& targets, const string& pname) {
                 }
             }
             cout << "[PRODUCTION][web] running for production... [PRODUCTION]\n";
-            string cmd = "cd web && python -m http.server 8000";
-            //string cmd = "cd " + root + "/web && emcc main.cpp -o main.js -sEXPORTED_FUNCTIONS='[\"_main\"]' -sEXPORTED_RUNTIME_METHODS=[ccall,cwrap] -sALLOW_MEMORY_GROWTH";
+            std::string cmd = "cd web && python -m http.server 8000";
+            //std::string cmd = "cd " + root + "/web && emcc main.cpp -o main.js -sEXPORTED_FUNCTIONS='[\"_main\"]' -sEXPORTED_RUNTIME_METHODS=[ccall,cwrap] -sALLOW_MEMORY_GROWTH";
             system(cmd.c_str());
         } else if (target == "android") {
             if(targets.size() > 1) {
-                string flag = targets.at(1);
+                std::string flag = targets.at(1);
                 if(flag == "-b") {
                     cout << "[PRODUCTION][android] Building for production... \n";
                 } else {
@@ -1049,7 +1054,7 @@ void Core::runTarget(const vector<string>& targets, const string& pname) {
             cout << "[PRODUCTION][android] (to integrate with Gradle/ADB later)[PRODUCTION]\n";
         } else if (target == "ios") {
             if(targets.size() > 1) {
-                string flag = targets.at(1);
+                std::string flag = targets.at(1);
                 if(flag == "-b") {
                     cout << "[PRODUCTION][android] Building for production... \n";
                 } else {
@@ -1069,8 +1074,8 @@ void Core::runTarget(const vector<string>& targets, const string& pname) {
 }
 
 // --------------------- Build ---------------------
-void Core::buildTarget(const vector<string>& targets, const string& pname) {
-    string root = getProjectRoot(pname);
+void Core::buildTarget(const std::vector<std::string>& targets, const std::string& pname) {
+    std::string root = getProjectRoot(pname);
 
     for (auto& target : targets) {
         if (target == "web") {
@@ -1090,8 +1095,8 @@ void Core::buildTarget(const vector<string>& targets, const string& pname) {
 
 
 // --------------------- Clean ---------------------
-void Core::cleanProject(const string& pname) {
-    string root = getProjectRoot(pname);
+void Core::cleanProject(const std::string& pname) {
+    std::string root = getProjectRoot(pname);
     if (fs::exists("web/generated.cpp")) {
         fs::remove("web/generated.cpp");
         cout << "[helios] cleaned project folder: " << root << endl;
