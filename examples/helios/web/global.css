@@ -1,4 +1,35 @@
+@font-face {
+  font-family: 'BachelorPadJL';
+  src: url('static/BachelorPadJLRegular.ttf') format('truetype');
+}
+
 p {
     padding: 0px;
     margin: 0px;
+    font-family: "BachelorPadJL";
+}
+
+.navstart {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding-left: 20px;
+}
+.navend {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding-right: 20px;
+}
+.navicon {
+    width: 30px;
+    height: 30px;
+    object-fit: contain;
+}
+
+.brandname {
+    font-size: 20px;
+    font-weight: bold;
+    letter-spacing: 3px;
 }

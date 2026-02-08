@@ -49,6 +49,7 @@ private:
     std::unordered_map<std::string, VarInfo> statevars;
     std::unordered_map<std::string, VarInfo> declaredFunctions;
     std::vector<std::string> calledFunctions;
+    std::vector<std::string> stylesheet_imports;
     std::unordered_map<std::string, PageInfo> pagescope;
     std::unordered_map<std::string, InstanceInfo> instances;
     std::unordered_map<std::string, CallableInfo> draw_callables;

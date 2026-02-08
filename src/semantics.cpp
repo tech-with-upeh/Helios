@@ -454,7 +454,32 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
             for (auto stmt : node->SUB_STATEMENTS)
                 checkNode(stmt);
             return TYPE_UNKNOWN;
+
+         case NODE_ADDSTYLE: {
+            if (node->CHILD) {
+                std::string id = *(node->CHILD->value);
+                
+                if(std::find(stylesheet_imports.begin(), stylesheet_imports.end(), id) == stylesheet_imports.end()) {
+                    parserError("Stylesheet '" + id + "' is not Defined, can't add style to it.", node->CHILD);
+                }
+            }
+            return TYPE_FUNCTION;
+        }
+        case NODE_REMOVESTYLE: {
+            if (node->CHILD) {
+                std::string id = *(node->CHILD->value);
+                
+                if(std::find(stylesheet_imports.begin(), stylesheet_imports.end(), id) == stylesheet_imports.end()) {
+                    parserError("Stylesheet '" + id + "' is not Defined, can't remove style to it.", node->CHILD);
+                }
+            }
+            return TYPE_FUNCTION;
+         }
+         
         case NODE_STYLESHEET:
+                if (node->value) {
+                    stylesheet_imports.push_back(*(node->value));
+                }
             for (auto stmt : node->SUB_STATEMENTS)
                 checkNode(stmt, false);
             return TYPE_UNKNOWN;

@@ -79,12 +79,7 @@ bool WebEngine::gen(AST_NODE *root) {
     filebuffer << "int main() {" << mainbuffer.str() << codebuffer.str();
     filebuffer << "\tEM_ASM({\n\t\tModule._handleRoute(allocateUTF8(window.location.pathname));\n\t\twindow.addEventListener(\"popstate\", () => {\n\t\tModule._handleRoute(allocateUTF8(window.location.pathname));\n\t\t});\n\t});return 0;\n}\n";
 
-    
 
-
-    for (const auto &pair : variable_buffer) {
-        cout << pair.first << " <=> " << pair.second << endl;
-    }
     return makefile("web/generated.cpp", filebuffer.str());
 }
 
@@ -130,13 +125,6 @@ std::string WebEngine::exprForNode(AST_NODE *p) {
             std::string op = *(p->value);
             return "(" + lhs + " " + op + " " + rhs + ")";
         }
-
-        /*
-            def jd() {
-                return 5 + 3;
-            }
-
-        */
         case NODE_UNARY_OP: {
             std::string operand = exprForNode(p->CHILD);
             std::string op = *(p->value);
@@ -166,7 +154,7 @@ std::string WebEngine::MakePage(AST_NODE *p, std::string var, bool firstpage) {
             ss << "](VPage& page) {\n";
 
             for (const auto &imps : stylesheetimports) {
-                ss << "\t\tpage.addStyle(" << imps << ");\n";
+                ss << "\t\tpage.addStyle(\"" << imps << "\", " << imps << ");\n";
             }
             AST_NODE *args = p->CHILD;
             AST_NODE *styleParam = nullptr;
@@ -283,8 +271,7 @@ std::string WebEngine::MakePage(AST_NODE *p, std::string var, bool firstpage) {
         }
 
 std::string WebEngine::MakeElement(AST_NODE *p, std::string parent, std::string el,std::string eltype, bool isvar) {
-    
-    
+    idcount++;
     std::string varid = eltype+"_" + to_string(idcount);
     if (isvar)
     {
@@ -480,15 +467,14 @@ std::string WebEngine::MakeElement(AST_NODE *p, std::string parent, std::string 
 
     for (auto &child : p->SUB_STATEMENTS) {
         ss << HandleAst(child, varid);
+        idcount++;
     }
 
     if (!isvar)
     {
         ss << "\n\t" << parent << ".addChild(" << varid << ");";
     }
-    
 
-    idcount++;
     return ss.str();
 }
 
@@ -793,6 +779,23 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
             std::string endvar = ">>(\""+ varname +"\"," + makeendvar + ");";
             ss << "\n\tauto " << varname << " = make_shared<appstate::State<" << ctype << endvar;
             statevars.push_back(varname);
+            return ss.str();
+        }
+
+        case NODE_ADDSTYLE: {
+            stringstream ss;
+            ss << parent << ".addStyle(";
+            ss << "\"" << HandleAst(p->CHILD, parent, true) << "\"";
+            ss << ", " << HandleAst(p->CHILD, parent, true);
+            ss << ");\n";
+            return ss.str();
+        }
+
+        case NODE_REMOVESTYLE: {
+            stringstream ss;
+            ss << parent << ".removeStyle(";
+            ss << HandleAst(p->CHILD, parent, true);
+            ss << ");\n";
             return ss.str();
         }
         case NODE_STYLESHEET: {

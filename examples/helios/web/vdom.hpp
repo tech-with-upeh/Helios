@@ -14,6 +14,10 @@ struct VNode;
 void renderPage(VPage& page, bool statechange=false);
 std::string genId();
 void diff(const VNode& oldN, const VNode& newN);
+extern "C" {
+    EMSCRIPTEN_KEEPALIVE
+    void js_removeInlineCSS(const char* key);
+}
 
 // -------------------- Global Page State --------------------
 namespace GlobalState {
@@ -196,7 +200,7 @@ struct VPage {
     std::vector<VNode> children;
     std::vector<VNode> old_children; 
     std::unordered_map<std::string, std::string> bodyAttrs;
-    std::string stylesheet;
+    std::unordered_map<std::string, std::string> stylesheet;
 
     std::function<void(VPage&)> builder; 
     std::vector<std::function<void()>> onMount_list;
@@ -217,8 +221,14 @@ struct VPage {
         return *this;
     }
 
-    VPage& addStyle(const std::string& newstylesheet) {
-        stylesheet = newstylesheet;
+    VPage& addStyle(const std::string& key, const std::string& newstylesheet) {
+        stylesheet[key] = newstylesheet;
+        return *this;
+    }
+
+    VPage& removeStyle(const std::string& key) {
+        js_removeInlineCSS(key.c_str());
+        stylesheet.erase(key);
         return *this;
     }
     
@@ -425,12 +435,12 @@ class Platform {
     public:
         int height() {
             return EM_ASM_INT({
-                return window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+                return document.documentElement.clientHeight || document.body.clientHeight;
             });
         }
         int width() {
             return EM_ASM_INT({
-                return window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+                return document.documentElement.clientWidth || document.body.clientWidth;
             });
         }
 
@@ -545,17 +555,27 @@ extern "C" {
     }
 
     EMSCRIPTEN_KEEPALIVE
-    void js_insertCSS(const char* css) {
+    void js_insertCSS(const char* key, const char* css) {
         if (strcmp(css, "") != 0){    
             EM_ASM({
                 if (!document.getElementById("__ink_styles")) {
                 const style = document.createElement("style");
-                style.id = "__ink_styles";
-                style.innerHTML = UTF8ToString($0);
+                style.id = "__ink_styles_" + UTF8ToString($0);
+                style.innerHTML = UTF8ToString($1);
                 document.head.appendChild(style);
                 }
-            }, css);
+            }, key, css);
         }
+    }
+
+    EMSCRIPTEN_KEEPALIVE
+    void js_removeInlineCSS(const char* key) {
+        EM_ASM({
+            const style = document.getElementById("__ink_styles_" + UTF8ToString($0));
+            if (style) {
+                style.remove();
+            }
+        }, key);
     }
 
     EMSCRIPTEN_KEEPALIVE
@@ -681,11 +701,7 @@ extern "C" {
             el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
             if (el) {
                 el.attributes['data-ink-id'] = UTF8ToString($1);
-                console.log("if");
-            } else {
-                console.log("else");
-                return;
-            } 
+            }
             
         }, oldid, newid);
     }
@@ -870,7 +886,9 @@ inline void renderPage(VPage& page, bool statechange) {
         js_favicon(page.favicon.c_str());
     }
     js_setTitle(page.title.c_str());
-    js_insertCSS(page.stylesheet.c_str());
+    for(const auto& [key, value] : page.stylesheet) {
+        js_insertCSS(key.c_str(), value.c_str());
+    }
 
     for(auto& s : page.scripts) {
         js_addscript(s.c_str(), true);

@@ -52,6 +52,8 @@ enum NODE_TYPE {
     NODE_GETSTATE,
     NODE_GO,
     NODE_STYLESHEET,
+    NODE_ADDSTYLE,
+    NODE_REMOVESTYLE,
     NODE_CLS,
     NODE_MEDIA_QUERY,
     NODE_TOSTR,
@@ -134,6 +136,10 @@ public:
     AST_NODE *parseCtx();
     AST_NODE *parsePlatform();
 
+    AST_NODE *parseAddStyle();
+    AST_NODE *parseRemoveStyle();
+
+    
     std::vector<std::string> defined_keywords;
     std::vector<std::string> loop_keywords;
     // ---------- Keyword Dispatcher ----------

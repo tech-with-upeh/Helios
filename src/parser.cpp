@@ -41,6 +41,8 @@ std::string nodetostr(enum NODE_TYPE tYPE) {
         case NODE_SETSTATE: return "SETSTATE"; break;
         case NODE_GETSTATE: return "GETSTATE"; break;
         case NODE_GO: return "GO";
+        case NODE_ADDSTYLE: return "ADD_STYLE"; break;
+        case NODE_REMOVESTYLE: return "REMOVE_STYLE"; break;
         case NODE_STYLESHEET: return "STYLESHEET"; break;
         case NODE_CLS: return "CLASS"; break;
         case NODE_MEDIA_QUERY: return "MEDIA_QUERY"; break;
@@ -1674,6 +1676,77 @@ Parser::Parser(std::vector<Token *> tokens)
     }
 
 
+    AST_NODE *Parser::parseAddStyle() {
+        proceed(current->TYPE);
+        AST_NODE * node = new AST_NODE;
+        node->TYPE = NODE_ADDSTYLE;
+        node->charno = current->charno;
+        node->lineno = current->lineno;
+        node->sourceLine = current->sourceLine;
+        node->extra = current->extra;
+        proceed(TOKEN_LPAREN);
+        if (current->TYPE == TOKEN_RPAREN) {
+            parserError("Please Pass An ID");
+        }
+        if (current->TYPE != TOKEN_RPAREN) {
+
+            AST_NODE *param = new AST_NODE();
+            if (current->TYPE == TOKEN_ID)
+            {
+                param->TYPE = NODE_VARIABLE;
+                param->value = &current->value;
+                param->lineno = current->lineno;
+                param->sourceLine = current->sourceLine;
+                param->extra = current->extra;
+                param->charno = current->charno;
+                proceed(TOKEN_ID);
+                node->CHILD = param;
+
+            } else {
+                parserError("Unexpected in addStyle(), please give an Id to a stylesheet: "+ current->value);
+            }
+
+        }
+        proceed(TOKEN_RPAREN);
+
+        return node;
+    }
+
+    AST_NODE *Parser::parseRemoveStyle() {
+        proceed(current->TYPE);
+        AST_NODE * node = new AST_NODE;
+        node->TYPE = NODE_REMOVESTYLE;
+        node->charno = current->charno;
+        node->lineno = current->lineno;
+        node->sourceLine = current->sourceLine;
+        node->extra = current->extra;
+        proceed(TOKEN_LPAREN);
+        if (current->TYPE == TOKEN_RPAREN) {
+            parserError("Please Pass An ID");
+        }
+        if (current->TYPE != TOKEN_RPAREN) {
+            
+            AST_NODE *param = new AST_NODE();
+            if (current->TYPE == TOKEN_ID)
+            {
+                param->TYPE = NODE_VARIABLE;
+                param->value = &current->value;
+                param->lineno = current->lineno;
+                param->sourceLine = current->sourceLine;
+                param->extra = current->extra;
+                param->charno = current->charno;
+                proceed(TOKEN_ID);            
+                node->CHILD = param;
+
+            } else {
+                parserError("Unexpected in removeStyle(), please give an Id to a stylesheet: "+ current->value);
+            }
+
+        }
+        proceed(TOKEN_RPAREN);
+
+        return node;
+    }
    
     // ---------- Keyword Dispatcher ----------
     AST_NODE *Parser::parseKEYWORDS() {
@@ -1856,7 +1929,11 @@ Parser::Parser(std::vector<Token *> tokens)
                 std::string *funcIdent = &current->value;
                 proceed(current->TYPE);
                 return parseFunctionCall(funcIdent, NODE_GO);
-            }else {
+            } else if(current->value == "addStyle") {
+                return parseAddStyle();
+            } else if(current->value == "removeStyle") {
+                return parseRemoveStyle();
+            } else {
                 parserError("Unknown keyword: " + current->value);
             }
         }

@@ -1,233 +1,308 @@
-# ============================================================================
-# Language Grammar Specification
-# Based on Saturn implementation
-# ============================================================================
+HELIOS LANGUAGE SPECIFICATION
+(Reverse-engineered from parser)
 
-# ============================================================================
-# 1. PROGRAM STRUCTURE
-# ============================================================================
+================================
+1. OVERVIEW
+================================
 
-<program> ::= { <statement> } EOF
+Helios is a UI-first hybrid language combining declarative UI with
+imperative logic. It is designed for pages, views, canvas drawing,
+stylesheets, and reactive state.
 
-<statement> ::= <variable_decl> NEWLINE?
-              | <function_call> NEWLINE?
-              | <print_statement> NEWLINE?
-              | <return_statement> NEWLINE?
-              | <if_statement>
-              | <while_statement>
-              | <for_statement>
-              | <function_decl>
-              | <page_decl>
-              | <view_decl>
-              | <text_decl>
-              | <image_decl>
-              | <state_operation> NEWLINE?
-              | <type_check> NEWLINE?
-              | <loop_control> NEWLINE?
-              | <comment>
-              | NEWLINE
+Core ideas:
+- page() is the top-level unit
+- UI elements are function-like blocks
+- State is reactive and page-scoped
+- Stylesheets are native language constructs
+- Event handlers support inline functions
 
-# ============================================================================
-# 2. EXPRESSIONS (Operator precedence from highest to lowest)
-# ============================================================================
+--------------------------------
+2. PROGRAM STRUCTURE
+--------------------------------
 
-# Level 6: Primary expressions
-<factor> ::= INTEGER
-           | STRING
-           | IDENTIFIER [ <function_call_suffix> | <postfix_incdec> ]
-           | '(' <expression> ')'
-           | <list_literal>
-           | <dict_literal>
-           | <prefix_incdec>
-           | BOOLEAN
-           | 'null'
-           | <ui_component_call>
+A Helios program is a sequence of statements:
 
-# Level 5: Postfix increment/decrement
-<postfix_incdec> ::= ('++' | '--')
+- page declarations
+- function definitions
+- stylesheet declarations
+- expressions
+- comments
 
-# Level 4: Prefix increment/decrement  
-<prefix_incdec> ::= ('++' | '--') IDENTIFIER
+Example:
 
-# Level 3: Multiplication/Division
-<term> ::= <factor> { ('*' | '/') <factor> }
+page("Home") {
+    view("root") {
+        text("Hello world")
+    }
+}
 
-# Level 2: Addition/Subtraction
-<expression> ::= <term> { ('+' | '-') <term> }
+--------------------------------
+3. PAGE
+--------------------------------
 
-# Level 1: Comparison operators
-<comparison> ::= <expression> { 
-                  ('==' | '!=' | '>' | '<' | '>=' | '<=' | '!') 
-                  <expression> 
-                }
+Syntax:
 
-# ============================================================================
-# 3. VARIABLES AND ASSIGNMENT
-# ============================================================================
+page(title_or_identifier, [params...]) {
+    body
+}
 
-<variable_decl> ::= IDENTIFIER (
-                     '=' <comparison>                    # Regular assignment
-                   | ('++' | '--')                       # Postfix increment
-                   | <function_call_suffix>              # Function call result
-                   )?
+First argument:
+- string literal OR identifier
 
-# ============================================================================
-# 4. DATA STRUCTURES
-# ============================================================================
+Optional parameters:
+- route
+- style
+- cls
+- id
 
-<list_literal> ::= '[' [ <expression> { ',' <expression> } ] ']'
+Example:
 
-<dict_literal> ::= [ '#' ] '{' 
-                    [ <keyvalue_pair> { ',' <keyvalue_pair> } ] 
-                  '}'
+page("Home", route="/", cls="main") {
+}
 
-<keyvalue_pair> ::= (IDENTIFIER | STRING) ':' <expression>
+Rules:
+- Only one page per file (recommended)
+- Page parameters are parsed specially
 
-# ============================================================================
-# 5. FUNCTIONS
-# ============================================================================
+--------------------------------
+4. UI ELEMENTS
+--------------------------------
 
-<function_call> ::= IDENTIFIER '(' [ <argument_list> ] ')'
-<function_call_suffix> ::= '(' [ <argument_list> ] ')'
-<argument_list> ::= <expression> { ',' <expression> }
+Supported UI nodes:
 
-<function_decl> ::= 'def' IDENTIFIER '(' [ <parameter_list> ] ')' 
-                    '{' { <statement> } '}'
-<parameter_list> ::= IDENTIFIER { ',' IDENTIFIER }
+- view
+- text
+- img
+- canvas
 
-<inline_function> ::= '(' [ <parameter_list> ] ')' '{' { <statement> } '}'
+General syntax:
 
-# ============================================================================
-# 6. CONTROL FLOW
-# ============================================================================
+view(value, [params...]) {
+    children
+}
 
-<if_statement> ::= 'if' '(' <comparison> ')' '{' { <statement> } '}'
-                   { 'else' 'if' '(' <comparison> ')' '{' { <statement> } '}' }
-                   [ 'else' '{' { <statement> } '}' ]
+Rules:
+- First argument is mandatory
+- id parameter is NOT allowed on view
 
-<while_statement> ::= 'while' '(' <comparison> ')' '{' { <statement> } '}'
+--------------------------------
+5. COMMON PARAMETERS
+--------------------------------
 
-<for_statement> ::= 'for' '(' 
-                    IDENTIFIER ':' 
-                    <comparison> ':' 
-                    <increment> 
-                    ')' '{' { <statement> } '}'
+style     : dict | identifier
+cls       : string | identifier
+id        : string | identifier (not allowed on view)
+onclick   : function
+onlongpress : function
 
-<increment> ::= IDENTIFIER ('++' | '--' | '=' <expression>)
+--------------------------------
+6. EVENT HANDLERS
+--------------------------------
 
-<loop_control> ::= 'continue' | 'break' | 'pass'
+Forms supported:
 
-# ============================================================================
-# 7. BUILT-IN STATEMENTS
-# ============================================================================
+1) Function reference
+onclick=myHandler
 
-<print_statement> ::= 'print' '(' <comparison> ')'
-<return_statement> ::= 'return' <comparison>
-<type_check> ::= 'type' '(' <factor> ')'
+2) Inline def
+onclick=def() {
+    print("clicked")
+}
 
-# ============================================================================
-# 8. UI COMPONENTS
-# ============================================================================
+3) Anonymous function
+onclick=() {
+    print("clicked")
+}
 
-<ui_component_call> ::= <page_decl> | <view_decl> | <text_decl> | <image_decl>
+--------------------------------
+7. CANVAS
+--------------------------------
 
-<page_decl> ::= 'page' '(' 
-                (STRING | IDENTIFIER) 
-                [ ',' <page_parameter> { ',' <page_parameter> } ] 
-                ')' '{' { <statement> } '}'
+Syntax:
 
-<page_parameter> ::= 'style' '=' <dict_literal>
-                   | 'route' '=' STRING
-                   | ('id' | 'cls') '=' (STRING | IDENTIFIER)
+canvas(id, width=INT|IDENT, height=INT|IDENT) {
+    draw(...)
+}
 
-<view_decl> ::= ('view' | 'text' | 'img') '(' 
-                [ (STRING | IDENTIFIER) ]
-                [ ',' <view_parameter> { ',' <view_parameter> } ] 
-                ')' ( '{' { <statement> } '}' | NEWLINE )
+Rules:
+- width is required
+- height is required
+- Missing either causes a parser error
 
-<view_parameter> ::= ('id' | 'cls' | 'style' | 'onclick' | 'onlongpress') '=' 
-                     ( STRING 
-                     | IDENTIFIER 
-                     | <dict_literal>
-                     | <function_call>
-                     | <inline_function>
-                     )
+--------------------------------
+8. DRAW CONTEXT
+--------------------------------
 
-# ============================================================================
-# 9. STATE MANAGEMENT
-# ============================================================================
+Syntax:
 
-<state_operation> ::= '@' ( 
-                       IDENTIFIER ':' <comparison>           # Get state
-                     | 'state' IDENTIFIER ':' <comparison>   # Set state
-                     )
+draw("canvasId")
+draw(canvasVar)
 
-# ============================================================================
-# 10. COMMENTS
-# ============================================================================
+Used only inside canvas blocks.
 
-<comment> ::= '#' .* NEWLINE
-            | '/*' .* '*/'
+--------------------------------
+9. STYLESHEET
+--------------------------------
+ 
+Syntax:
 
-# ============================================================================
-# 11. TOKENS (Lexical Grammar)
-# ============================================================================
+@stylesheet name {
+    selector = {
+        property: value
+    }
+}
 
-# Literals
-INTEGER    ::= [0-9]+
-STRING     ::= '"' ( [^"\n] | '\"' )* '"'
-            | "'" ( [^'\n] | "\'" )* "'"
-BOOLEAN    ::= 'true' | 'false'
+To Add Style var to dom: addStyles(name)
 
-# Identifiers  
-IDENTIFIER ::= [a-zA-Z_][a-zA-Z0-9_]*
+Global stylesheet:
 
-# Keywords
-KEYWORDS   ::= 'if' | 'else' | 'while' | 'for' | 'def' | 'return' 
-             | 'print' | 'type' | 'page' | 'view' | 'text' | 'img' 
-             | 'true' | 'false' | 'null' | 'continue' | 'break' 
-             | 'pass' | 'state'
+@stylesheet &global {
+}
 
-# Operators
-OPERATORS  ::= '+' | '-' | '*' | '/' | '=' | '==' | '!=' | '>' | '<' 
-             | '>=' | '<=' | '!' | '++' | '--' | ':' | '@' | '#'
+--------------------------------
+10. MEDIA QUERIES
+--------------------------------
 
-# Punctuation
-PUNCTUATION ::= '(' | ')' | '{' | '}' | '[' | ']' | ',' | ';'
+Syntax:
 
-# Whitespace
-NEWLINE    ::= '\n' | '\r\n'
-WHITESPACE ::= [ \t]+
+media(width > 600) {
+    selector {
+        property: value
+    }
+}
 
-# ============================================================================
-# 12. PRECEDENCE TABLE (from parser implementation)
-# ============================================================================
+Media conditions use expressions, not strings.
 
-# Level | Operators             | Associativity
-# -------+-----------------------+---------------
-#   6    | () [] {}              | Left-to-right
-#   5    | ++ -- (postfix)       | Left-to-right
-#   4    | ++ -- (prefix)        | Right-to-left
-#   3    | * /                   | Left-to-right
-#   2    | + -                   | Left-to-right
-#   1    | == != > < >= <= !     | Left-to-right
-#   0    | = : @                 | Right-to-left
+--------------------------------
+11. STATE
+--------------------------------
 
-# ============================================================================
-# 13. SYNTAX NOTES
-# ============================================================================
+Declare state (page-only):
 
-# 1. Semicolons are not required; statements are separated by newlines
-# 2. Blocks are always delimited by braces { }
-# 3. Parentheses around conditions in if/while/for are optional but recommended
-# 4. Function calls without arguments require empty parentheses: func()
-# 5. UI components can have either a block body or end with newline
-# 6. Comments: # for line comments, /* */ for block comments
-# 7. Dictionary keys can be identifiers or strings
-# 8. State operations use @ prefix: @variable: value or @state variable: value
-# 9. Type checking: type(expression) returns the type as string
-# 10. List and dict literals can be empty: [] or {}
+@state count: 0
 
-# ============================================================================
-# END OF GRAMMAR
-# ============================================================================
+Update state:
+
+@count: count + 1
+
+Rules:
+- State only allowed inside page
+- State updates outside page cause an error
+
+--------------------------------
+12. LIFECYCLE HOOKS (PAGE ONLY)
+--------------------------------
+
+onmount() {
+}
+
+animatefps() {
+}
+
+listener(event) {
+}
+
+Using these outside page is invalid.
+
+--------------------------------
+13. FUNCTIONS
+--------------------------------
+
+Declaration:
+
+def add(a, b) {
+    return a + b
+}
+
+Anonymous:
+
+() {
+    print("hello")
+}
+
+--------------------------------
+14. CONTROL FLOW
+--------------------------------
+
+if (condition) {
+}
+
+while (condition) {
+}
+
+for (item in collection) {
+}
+
+--------------------------------
+15. EXPRESSIONS & MATH
+--------------------------------
+
+Built-in math functions:
+
+sin(x)
+cos(x)
+tan(x)
+sqrt(x)
+pow(a, b)
+
+--------------------------------
+16. TYPE CONVERSIONS
+--------------------------------
+
+to_int(x)
+to_float(x)
+to_str(x)
+
+to_str is allowed inside UI parameters.
+
+--------------------------------
+17. PLATFORM API
+--------------------------------
+
+Syntax:
+
+Platform().method().method()
+
+Parsed as chained platform calls.
+
+--------------------------------
+18. NAVIGATION
+--------------------------------
+
+go("route")
+go(routeVar)
+
+--------------------------------
+19. COMMENTS
+--------------------------------
+
+Single-line:
+# comment
+
+Block:
+ /* comment */
+
+--------------------------------
+20. ERROR RULES
+--------------------------------
+
+- Missing required arguments cause hard errors
+- canvas without width/height is invalid
+- id on view is forbidden
+- lifecycle hooks only allowed in page
+- @state only allowed in page
+- Unknown keywords cause errors
+
+--------------------------------
+21. MENTAL MODEL
+--------------------------------
+
+Helios ≈ React + CSS + Canvas + scripting language
+
+- Declarative UI
+- Imperative logic
+- Reactive state
+- Strict parsing
+- Custom runtime execution
+
+END OF FILE

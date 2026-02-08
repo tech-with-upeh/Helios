@@ -892,6 +892,10 @@ void Core::devTarget(const std::vector<std::string>& targets, const std::string&
             cout << "[Helios] Building for development... \n";
             try {
                 builder();
+            } catch (std::exception& e) {
+                std::cerr << "Build failed: " << e.what() << "\n";
+            }
+            try {
                 std::mutex build_mutex;
 
                 uWS::App app;
@@ -907,7 +911,7 @@ void Core::devTarget(const std::vector<std::string>& targets, const std::string&
                     std::string full_path;
                     if (target.ends_with(".png") || target.ends_with(".jpg") ||
                         target.ends_with(".jpeg") || target.ends_with(".svg") ||
-                        target.ends_with(".ico") || target.ends_with(".gif")) {
+                        target.ends_with(".ico") || target.ends_with(".gif") || target.starts_with("/static/")) {
                         full_path = PUBLIC_ROOT + target;
                     } else {
                         full_path = WEB_ROOT + target;
@@ -955,7 +959,12 @@ void Core::devTarget(const std::vector<std::string>& targets, const std::string&
                             // simulate heavy work
                             std::this_thread::sleep_for(std::chrono::milliseconds(300));
 
-                            builder();
+
+                            try {
+                                builder();
+                            } catch (std::exception& e) {
+                                std::cerr << "Rebuild failed: " << e.what() << "\n";
+                            }
 
                             std::cout << "Rebuild done!, Reloading clients...\n";
                             // broadcast reload safely in uWS thread
@@ -971,7 +980,8 @@ void Core::devTarget(const std::vector<std::string>& targets, const std::string&
 
                 app.run();
             } catch (std::exception& e) {
-                std::cerr << "Helios: " << e.what() << "\n";
+                std::cerr << "We Didnt Plan for this to happen\nServer failed: " << e.what() << "\n";
+                exit(1);
             }
 
 

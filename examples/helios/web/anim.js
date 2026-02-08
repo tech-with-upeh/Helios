@@ -1,7 +1,7 @@
 const canvas = document.querySelector("#bg");
 const ctx = canvas.getContext("2d");
 
-canvas.width = window.innerWidth;
+canvas.width = window.innerWidth - 20; // Subtracting 20px to prevent horizontal scrollbar
 canvas.height = window.innerHeight;
 ctx.fill("nonzero");
 
