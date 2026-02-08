@@ -1,6 +1,8 @@
+#ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN  // Strips bloat from windows.h
 #define NOMINMAX             // Prevents conflicts with std::min/max
 #include <windows.h> 
+#endif
 
 #include <filesystem>
 #include <algorithm>
@@ -930,7 +932,7 @@ void Core::devTarget(const std::vector<std::string>& targets, const std::string&
                     },
                     .message = [](auto* ws, std::string_view msg, uWS::OpCode) {
                         if (msg == "ping") ws->send("pong", uWS::OpCode::TEXT);
-                        std::cout << "Received message from client: " << msg << "\n";
+                        std::cout << "[Helios] : " << msg << "\n";
                     }
                 });
 

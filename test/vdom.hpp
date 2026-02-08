@@ -10,10 +10,7 @@
 
 // -------------------- Forward declarations --------------------
 struct VPage;
-struct VNode;
 void renderPage(VPage& page, bool statechange=false);
-std::string genId();
-void diff(const VNode& oldN, const VNode& newN);
 
 // -------------------- Global Page State --------------------
 namespace GlobalState {
@@ -150,8 +147,7 @@ struct VNode {
     std::string canvasid = "main-canvas";
 
     std::string tag;
-    std::string dom_id;
-    std::string id;
+    
     std::string text;
     std::vector<VNode> children;
     std::unordered_map<std::string, std::string> attrs;
@@ -159,8 +155,7 @@ struct VNode {
     std::string callback_id;
 
     VNode() = default;
-    VNode(std::string t, std::string txt="", std::string_view ink_domid = "") : tag(t), text(txt), dom_id(ink_domid) {
-    }
+    VNode(std::string t, std::string txt="") : tag(t), text(txt) {}
     
     // Helper methods for building VNodes
     VNode& setText(const std::string& newText) {
@@ -169,11 +164,8 @@ struct VNode {
     }
     
     VNode& setAttr(const std::string& key, const std::string& value) {
-        if(key == "id") {
-            if (type == VNodeType::CANVAS) {
-                 canvasid = value;
-            }
-            id = value;
+        if(key == "id" || type == VNodeType::CANVAS) {
+            canvasid = value;
         }
         attrs[key] = value;
         return *this;
@@ -194,7 +186,6 @@ struct VNode {
 struct VPage {
     std::string title;
     std::vector<VNode> children;
-    std::vector<VNode> old_children; 
     std::unordered_map<std::string, std::string> bodyAttrs;
     std::string stylesheet;
 
@@ -235,7 +226,6 @@ struct VPage {
 
     void rebuild() {
         if (!builder) return;
-        old_children = children;
         clearChildren();
         builder(*this);
     }
@@ -649,52 +639,6 @@ extern "C" {
             });
         }, event);
     }
-
-    EMSCRIPTEN_KEEPALIVE
-    void js_setText(const char* id, const char* text) {
-        EM_ASM({
-            const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
-            if (el) el.textContent = UTF8ToString($1);
-        }, id, text);
-    }
-    EMSCRIPTEN_KEEPALIVE
-    void js_setAttr(const char* id, const char* key, const char* val) {
-        EM_ASM({
-            const el = document.getElementById(UTF8ToString($0));
-            if (!el) return;
-            el.setAttribute(UTF8ToString($1), UTF8ToString($2));
-        }, id, key, val);
-    }
-
-    EMSCRIPTEN_KEEPALIVE
-    void js_removeAttr(const char* id, const char* key) {
-        EM_ASM({
-            const el = document.getElementById(UTF8ToString($0));
-            if (!el) return;
-            el.removeAttribute(UTF8ToString($1));
-        }, id, key);
-    }
-    
-    EMSCRIPTEN_KEEPALIVE
-    void js_update_ink_id(const char* oldid, const char* newid) {
-        EM_ASM({
-            el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
-            if (el) {
-                el.attributes['data-ink-id'] = UTF8ToString($1);
-                console.log("if");
-            } else {
-                console.log("else");
-                return;
-            } 
-            
-        }, oldid, newid);
-    }
-
-}
-
-inline std::string genId() {
-    static int id = 0;
-    return "__ink_" + std::to_string(id++);
 }
 
 // -------------------- Render VNode to HTML --------------------
@@ -712,8 +656,7 @@ inline std::string renderToHTML(const VNode& node) {
         oss << "></canvas>";
         return oss.str();
     }
-
-    oss << "<" << node.tag << " data-ink-id=\"" << node.dom_id << "\"";
+    oss << "<" << node.tag;
 
     if(node.attrs.find("id") != node.attrs.end()) {
         oss << " id=\"" << node.attrs.at("id") << "\"";
@@ -744,117 +687,13 @@ inline void bindOnClick(VNode& node) {
         bindOnClick(child);
 }
 
-// -------------------- Diff Children --------------------
-inline void diffChildren(const VNode& oldN, const VNode& newN) {
-    size_t oldSize = oldN.children.size();
-    size_t newSize = newN.children.size();
-    size_t minSize = std::min(oldSize, newSize);
-
-    // 1. Diff existing nodes
-    for (size_t i = 0; i < minSize; i++) {
-        diff(oldN.children[i], newN.children[i]);
-    }
-
-    // 2. Add new nodes
-    for (size_t i = minSize; i < newSize; i++) {
-        const auto& child = newN.children[i];
-        EM_ASM({
-            const parent = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
-            if (parent) parent.insertAdjacentHTML('beforeend', UTF8ToString($1));
-        }, oldN.dom_id.c_str(), renderToHTML(child).c_str());
-
-        // register callbacks for new nodes
-        bindOnClick(const_cast<VNode&>(child));
-    }
-
-    // 3. Remove old extra nodes
-    for (size_t i = minSize; i < oldSize; i++) {
-        const auto& child = oldN.children[i];
-        EM_ASM({
-            const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
-            if (el) el.remove();
-        }, child.dom_id.c_str());
-    }
-}
-
-// -------------------- Diff a VNode --------------------
-inline void diff(const VNode& oldN, const VNode& newN) {
-    if (oldN.type == VNodeType::CANVAS || newN.type == VNodeType::CANVAS) {
-        // For canvas, just replace
-        if (oldN.canvasid != newN.canvasid || oldN.width != newN.width || oldN.height != newN.height) {
-            EM_ASM({
-                const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
-                if (el) el.outerHTML = UTF8ToString($1);
-            }, oldN.dom_id.c_str(), renderToHTML(newN).c_str());
-        }
-        return;
-    }
-
-    if (oldN.tag != newN.tag) {
-        EM_ASM({
-            const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
-            if (el) el.outerHTML = UTF8ToString($1);
-        }, oldN.dom_id.c_str(), renderToHTML(newN).c_str());
-        
-        return;
-    }
-
-    if (oldN.text != newN.text) {
-        js_setText(oldN.dom_id.c_str(), newN.text.c_str());
-         js_update_ink_id(oldN.dom_id.c_str(), newN.dom_id.c_str());
-    }
-
-    // Attributes
-    for (auto& [k, v] : newN.attrs) {
-        auto it = oldN.attrs.find(k);
-        if (it == oldN.attrs.end() || it->second != v) {
-            js_setAttr(oldN.dom_id.c_str(), k.c_str(), v.c_str());
-        }
-    }
-
-    for (auto& [k, v] : oldN.attrs) {
-        if (newN.attrs.find(k) == newN.attrs.end()) {
-            js_removeAttr(oldN.dom_id.c_str(), k.c_str());
-        }
-    }
-
-    // Children
-    diffChildren(oldN, newN);
-}
-
 // -------------------- Render Page --------------------
 inline void renderPage(VPage& page, bool statechange) {
-    // Set as current page for callbacks
+    // Set as current page for callbacks to access
     GlobalState::setCurrentPage(&page);
-
-    if (statechange) {
-        size_t n = std::min(page.old_children.size(), page.children.size());
-        for (size_t i = 0; i < n; i++) {
-            diff(page.old_children[i], page.children[i]);
-        }
-
-        // Add new children
-        for (size_t i = n; i < page.children.size(); i++) {
-            auto& child = page.children[i];
-            js_insertHTML(renderToHTML(child).c_str());
-            bindOnClick(child);
-        }
-
-        // Remove extra old children
-        for (size_t i = n; i < page.old_children.size(); i++) {
-            EM_ASM({
-                const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
-                if (el) el.remove();
-            }, page.old_children[i].dom_id.c_str());
-        }
-
-        return;
-    }
-
-    // Initial render
+    
     std::ostringstream html;
     std::unordered_map<std::string, std::string> canvas_list;
-
     for(auto& node : page.children) {
         bindOnClick(node);
         if (node.type == VNodeType::CANVAS) {
@@ -865,42 +704,44 @@ inline void renderPage(VPage& page, bool statechange) {
     }
 
     js_insertHTML(html.str().c_str());
-
     if (!page.favicon.empty()) {
-        js_favicon(page.favicon.c_str());
-    }
+         js_favicon(page.favicon.c_str());
+     }
     js_setTitle(page.title.c_str());
     js_insertCSS(page.stylesheet.c_str());
+    
+    if (statechange == false) {
+        for(auto& s : page.scripts) {
+            js_addscript(s.c_str(), true);
+        }
 
-    for(auto& s : page.scripts) {
-        js_addscript(s.c_str(), true);
+        for(auto& c : page.stylesheets) {
+            js_addscript(c.c_str(), false);
+        }
     }
-    for(auto& c : page.stylesheets) {
-        js_addscript(c.c_str(), false);
+    
+     
+
+    
+    if (!canvas_list.empty()) {
+        for (auto &i : canvas_list) {
+            js_mountCanvas(i.first.c_str(), i.second.c_str());
+        }
     }
 
-    // Mount canvases
-    for (auto &i : canvas_list) {
-        js_mountCanvas(i.first.c_str(), i.second.c_str());
-    }
-
-    // Body attributes
+    // Apply body attributes
     for(const auto& [key, value] : page.bodyAttrs) {
         js_setBodyAttr(key.c_str(), value.c_str());
     }
-
-    // Mount hooks
     for (auto& fn : page.onMount_list) {
         fn();
     }
-
-    // Animate FPS
     if (page.reqanimate) {
         js_reqfps();
     }
-
-    // Page-level callbacks
     for(const auto& k : page.page_callbacks) {
         js_addpageEventlisteners(k.first.c_str());
     }
+   
+     
 }

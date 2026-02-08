@@ -16,6 +16,11 @@ WebEngine::WebEngine()
     pagecount(1)  {
 }
 
+inline std::string genId() {
+    static int id = 0;
+    return "__ink_" + std::to_string(id++);
+}
+
 
 std::string WebEngine::pyxtocpp_type(enum NODE_TYPE type, AST_NODE* node) {
     switch (type)
@@ -84,7 +89,7 @@ bool WebEngine::gen(AST_NODE *root) {
 }
 
 
-// Escape C-style std::string literal (for embedding fixed literal pieces in generated C++ code)
+// Escape C-style std::string literal
 std::string WebEngine::escape_for_cpp_literal(const std::string &in) {
     std::string out;
     out.reserve(in.size()*2);
@@ -288,7 +293,7 @@ std::string WebEngine::MakeElement(AST_NODE *p, std::string parent, std::string 
     stringstream ss;
     if (el != "p")
     {
-        ss << "\n\tVNode "+varid+"(\""+ el +"\");\n";
+        ss << "\n\tVNode "+varid+"(\""+ el +"\", \"\", \""+ genId() +"\");\n";
     }
     
     AST_NODE *args = p->CHILD;
@@ -341,11 +346,12 @@ std::string WebEngine::MakeElement(AST_NODE *p, std::string parent, std::string 
         if (el == "p")
         {
             if (firstparam->TYPE == NODE_STRING) {
-                    ss << "\n\t\tVNode "+varid+"(\""+ el + "\",\"" + *(firstparam->value) +"\");\n";
+                    ss << "\n\t\tVNode "+varid+"(\""+ el + "\",\"" + *(firstparam->value) +"\", \""+ genId() +"\");\n";
                 } else if (firstparam->TYPE == NODE_VARIABLE) {
-                    ss << "\n\t\tVNode "+varid+"(\""+ el + "\"," + HandleAst(firstparam, parent) +");\n"; 
+                    ss << "\n\t\tVNode "+varid+"(\""+ el + "\"," + HandleAst(firstparam, parent) +", \""+ genId() +"\");\n";
+                    
                 } else if (firstparam->TYPE == NODE_TOSTR) {
-                    ss << "\n\t\tVNode "+varid+"(\""+ el + "\"," + MakeConversion(firstparam, firstparam->TYPE, false) +");\n";
+                    ss << "\n\t\tVNode "+varid+"(\""+ el + "\"," + MakeConversion(firstparam, firstparam->TYPE, false) +", \""+ genId() +"\");\n";
                 } else {
                     cout << nodetostr(firstparam->TYPE) << "\n";
                     cout << "we didnt plan for this\ngot error P's text is not a string or variable\n";

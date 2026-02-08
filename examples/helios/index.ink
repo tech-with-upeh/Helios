@@ -5,7 +5,7 @@ page("Helios ~ Your Full Stack FrmeWork", style={
     "padding": "0px",
     "margin": "0px"
 }) {
-
+    
     h = Platform().height
     w = Platform().width
     @state num : 0
@@ -39,19 +39,8 @@ page("Helios ~ Your Full Stack FrmeWork", style={
             "user-select": "none",
             "cursor": "pointer"
         })
-        text("reload page to reset", style={
-            "padding": "0px",
-            "margin": "0px",
-            "font-size": "12px",
-            "line-height": "12px",
-            "text-align": "center",
-            "user-select": "none"
-        })
+        text("reload")
     } 
 
-}
-
-page("About Heli", route="/about") {
-    text("About Helios")
 }
         
