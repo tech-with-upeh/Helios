@@ -33,3 +33,17 @@ p {
     font-weight: bold;
     letter-spacing: 3px;
 }
+
+.navmenu {
+    position: absolute;
+    top: 60px;
+    right: 20px;
+    width: 50%;
+    background-color: rgba(255, 255, 255, 0.2);
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow: hidden;
+    transition: height 0.3s ease;
+}

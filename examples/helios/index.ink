@@ -48,6 +48,8 @@ page("Helios ~ Your Full Stack FrmeWork", style={
     h = Platform().height
     w = Platform().width
     @state num : 0
+    @state navh : "0px"
+    @state navpad : "0px"
     canvas("bg", height=h, width=w)
     img("box-bg.jpg", cls="bgimg")
  
@@ -60,8 +62,22 @@ page("Helios ~ Your Full Stack FrmeWork", style={
             text("Helios", cls="brandname")
         }
         view("nav-end", cls="navend") {
-            text(to_str(num), cls="mydivtext")
+            text(to_str(num), onclick=(navh, navpad) {
+                if navh == "0px" {
+                    navh = "150px"
+                }else {
+                    navh = "0px"
+                }
+            }, cls="mydivtext")
             img("nav.png", cls="navicon")
+            view("nav-menu",style={
+                "padding": str(navpad) + "px;",
+                "height": str(navh) + "px;"
+        }, cls="navmenu") {
+                text("Home")
+                text("Docs")
+                text("GitHub")
+            }
         }
     } 
 
