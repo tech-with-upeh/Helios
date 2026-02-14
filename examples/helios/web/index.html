@@ -5,53 +5,57 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title></title>
 </head>
-                <body>
-                    <script>
-                        window.Helios = {
-                            ws: null,
+  <body>
+      <script>
+          window.Helios = {
+              ws: null,
 
-                            init() {
-                                const protocol = location.protocol === "https:" ? "wss" : "ws";
-                                this.ws = new WebSocket(`${protocol}://${location.host}/ws`);
+              init() {
+                  const protocol = location.protocol === "https:" ? "wss" : "ws";
+                  this.ws = new WebSocket(`${protocol}://${location.host}/ws`);
 
-                                this.ws.onmessage = (e) => {
-                                    if (e.data === "r") location.reload();
-                                };
-                            },
+                  this.ws.onmessage = (e) => {
+                      if (e.data === "r") {
+                        location.reload();
+                    };
+                    if (e.data === "e") {
+                      console.log("e....");
+                    }
+              },
 
-                            send(msg) {
-                                if (this.ws?.readyState === WebSocket.OPEN) {
-                                    this.ws.send(msg);
-                                }
-                            }
-                        };
+              send(msg) {
+                  if (this.ws?.readyState === WebSocket.OPEN) {
+                      this.ws.send(msg);
+                  }
+              }
+          };
 
-                        Helios.init();
-                        var Module = {
-                            onRuntimeInitialized: function() {
-                                console.log('[HELIOS] WASM Module initialized [HELIOS]');
-                            },
-                            print: function(text) {
-                                Helios.send(text);
-                                console.log('[HELIOS]:', text);
-                            }
-                        };
+          Helios.init();
+          var Module = {
+              onRuntimeInitialized: function() {
+                  console.log('[HELIOS] WASM Module initialized [HELIOS]');
+              },
+              print: function(text) {
+                  Helios.send(text);
+                  console.log('[HELIOS]:', text);
+              }
+          };
 
-                        document.addEventListener('click', function(event) {
-                            const target = event.target;
-                            const callbackId = target.getAttribute('data-callback');
-                            
-                            if (callbackId && Module && Module._invokeVNodeCallback) {
-                                const length = Module.lengthBytesUTF8(callbackId) + 1;
-                                const buffer = Module._malloc(length);
-                                Module.stringToUTF8(callbackId, buffer, length);
-                                
-                                Module._invokeVNodeCallback(buffer);
-                                Module._free(buffer);
-                            }
-                        });
-                    </script>
-                    
-                    <script src="main.js"></script>
-                </body>
-                </html>
+          document.addEventListener('click', function(event) {
+              const target = event.target;
+              const callbackId = target.getAttribute('data-callback');
+              
+              if (callbackId && Module && Module._invokeVNodeCallback) {
+                  const length = Module.lengthBytesUTF8(callbackId) + 1;
+                  const buffer = Module._malloc(length);
+                  Module.stringToUTF8(callbackId, buffer, length);
+                  
+                  Module._invokeVNodeCallback(buffer);
+                  Module._free(buffer);
+              }
+          });
+      </script>
+      
+      <script src="main.js"></script>
+  </body>
+  </html>

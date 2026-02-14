@@ -22,11 +22,11 @@ extern "C" {
 // -------------------- Global Page State --------------------
 namespace GlobalState {
     static VPage* currentPage = nullptr;
-    
+
     static void setCurrentPage(VPage* page) {
         currentPage = page;
     }
-    
+
     static VPage* getCurrentPage() {
         return currentPage;
     }
@@ -39,13 +39,13 @@ namespace appstate {
     class State {
     private:
         std::string key;
-        
+
     public:
         State(const std::string& k, T initial) : key(k) {
             // Force initialization in JS storage
             initialize(initial);
         }
-        
+
         void initialize(T initial_value) {
             if constexpr (std::is_same_v<T, int>) {
                 EM_ASM({
@@ -64,7 +64,7 @@ namespace appstate {
                 }, key.c_str(), initial_value.c_str());
             }
         }
-        
+
         void set(T new_value) {
             if constexpr (std::is_same_v<T, int>) {
                 EM_ASM({
@@ -78,7 +78,7 @@ namespace appstate {
                 }, key.c_str(), new_value.c_str());
             }
         }
-        
+
         T get() const {
             if constexpr (std::is_same_v<T, int>) {
                 return EM_ASM_INT({
@@ -99,7 +99,7 @@ namespace appstate {
                     stringToUTF8(val, buffer, length);
                     return buffer;
                 }, key.c_str());
-                
+
                 if (result) {
                     std::string str(result);
                     free(result);
@@ -120,14 +120,14 @@ class CallbackRegistry {
 private:
     static std::unordered_map<std::string, std::function<void()>> callbacks;
     static int nextId;
-    
+
 public:
     static std::string registerCallback(std::function<void()> callback) {
         std::string id = "callback_" + std::to_string(nextId++);
         callbacks[id] = callback;
         return id;
     }
-    
+
     static void invokeCallback(const std::string& id) {
         auto it = callbacks.find(id);
         if (it != callbacks.end()) {
@@ -165,13 +165,13 @@ struct VNode {
     VNode() = default;
     VNode(std::string t, std::string txt="", std::string_view ink_domid = "") : tag(t), text(txt), dom_id(ink_domid) {
     }
-    
+
     // Helper methods for building VNodes
     VNode& setText(const std::string& newText) {
         text = newText;
         return *this;
     }
-    
+
     VNode& setAttr(const std::string& key, const std::string& value) {
         if(key == "id") {
             if (type == VNodeType::CANVAS) {
@@ -182,12 +182,12 @@ struct VNode {
         attrs[key] = value;
         return *this;
     }
-    
+
     VNode& addChild(const VNode& child) {
         children.push_back(child);
         return *this;
     }
-    
+
     VNode& onClick(std::function<void()> handler) {
         onclick = handler;
         return *this;
@@ -202,7 +202,7 @@ struct VPage {
     std::unordered_map<std::string, std::string> bodyAttrs;
     std::unordered_map<std::string, std::string> stylesheet;
 
-    std::function<void(VPage&)> builder; 
+    std::function<void(VPage&, std::string msg)> builder; 
     std::vector<std::function<void()>> onMount_list;
     bool reqanimate = false;
     std::function<void()> onanimate;
@@ -214,7 +214,7 @@ struct VPage {
 
 
 
-    
+
     // Helper methods
     VPage& setTitle(const std::string& newTitle) {
         title = newTitle;
@@ -231,25 +231,25 @@ struct VPage {
         stylesheet.erase(key);
         return *this;
     }
-    
+
     VPage& addChild(const VNode& child) {
         children.push_back(child);
         return *this;
     }
-    
+
     VPage& clearChildren() {
         children.clear();
         onMount_list.clear();
         return *this;
     }
 
-    void rebuild() {
+    void rebuild(std::string msg = "") {
         if (!builder) return;
         old_children = children;
         clearChildren();
-        builder(*this);
+        builder(*this, msg);
     }
-    
+
     // Render this page
     void render(bool statechange=false) {
         rebuild();
@@ -293,12 +293,12 @@ public:
                 const ctx = document.getElementById(UTF8ToString($0)).getContext("2d");
                 ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             }
-            
+
         }, id.c_str());
     }
 
     // if i get lost
-    
+
     void setFill(const std::string& color) {
         EM_ASM({
             const ctx = document.getElementById(UTF8ToString($0))?.getContext("2d");
@@ -502,6 +502,7 @@ private:
         static std::string p;
         return p;
     }
+    
 
     // 404 page
     static Handler get404() {
@@ -510,7 +511,7 @@ private:
         auto it = routes().find(notfound_path);
         if (it != routes().end() && it->second) {
             notfound = [it]() {
-                
+
                 return it->second;
             }();
         } else {
@@ -521,7 +522,7 @@ private:
                 return page;
             }();
         }
-        
+
         return notfound;
     }
 };
@@ -612,7 +613,7 @@ extern "C" {
             }, key, val);
         }
     }
-    
+
     EMSCRIPTEN_KEEPALIVE
     char* allocateString(const char* str) {
         size_t len = strlen(str) + 1;
@@ -620,7 +621,7 @@ extern "C" {
         strcpy(buffer, str);
         return buffer;
     }
-    
+
     EMSCRIPTEN_KEEPALIVE
     void freeString(char* str) {
         free(str);
@@ -680,7 +681,7 @@ extern "C" {
     EMSCRIPTEN_KEEPALIVE
     void js_setAttr(const char* id, const char* key, const char* val) {
         EM_ASM({
-            const el = document.getElementById(UTF8ToString($0));
+            const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
             if (!el) return;
             el.setAttribute(UTF8ToString($1), UTF8ToString($2));
         }, id, key, val);
@@ -689,12 +690,12 @@ extern "C" {
     EMSCRIPTEN_KEEPALIVE
     void js_removeAttr(const char* id, const char* key) {
         EM_ASM({
-            const el = document.getElementById(UTF8ToString($0));
+            const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
             if (!el) return;
             el.removeAttribute(UTF8ToString($1));
         }, id, key);
     }
-    
+
     EMSCRIPTEN_KEEPALIVE
     void js_update_ink_id(const char* oldid, const char* newid) {
         EM_ASM({
@@ -702,7 +703,7 @@ extern "C" {
             if (el) {
                 el.attributes['data-ink-id'] = UTF8ToString($1);
             }
-            
+
         }, oldid, newid);
     }
 
@@ -811,13 +812,13 @@ inline void diff(const VNode& oldN, const VNode& newN) {
             const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
             if (el) el.outerHTML = UTF8ToString($1);
         }, oldN.dom_id.c_str(), renderToHTML(newN).c_str());
-        
+
         return;
     }
 
     if (oldN.text != newN.text) {
         js_setText(oldN.dom_id.c_str(), newN.text.c_str());
-         js_update_ink_id(oldN.dom_id.c_str(), newN.dom_id.c_str());
+         
     }
 
     // Attributes
@@ -829,6 +830,7 @@ inline void diff(const VNode& oldN, const VNode& newN) {
     }
 
     for (auto& [k, v] : oldN.attrs) {
+     // std::cout << " old: " << k << " old: " << v << std::endl;
         if (newN.attrs.find(k) == newN.attrs.end()) {
             js_removeAttr(oldN.dom_id.c_str(), k.c_str());
         }

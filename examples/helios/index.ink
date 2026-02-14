@@ -62,19 +62,19 @@ page("Helios ~ Your Full Stack FrmeWork", style={
             text("Helios", cls="brandname")
         }
         view("nav-end", cls="navend") {
-            text(to_str(num), onclick=(navh, navpad) {
+            text(to_str(num), cls="mydivtext")
+            img("nav.png",onclick=(navh, navpad) {
                 if navh == "0px" {
                     navh = "150px"
                 }else {
                     navh = "0px"
                 }
-            }, cls="mydivtext")
-            img("nav.png", cls="navicon")
+            }, cls="navicon")
             view("nav-menu",style={
-                "padding": str(navpad) + "px;",
-                "height": str(navh) + "px;"
+                "padding": navpad,
+                "height": navh
         }, cls="navmenu") {
-                text("Home")
+                text(navh)
                 text("Docs")
                 text("GitHub")
             }

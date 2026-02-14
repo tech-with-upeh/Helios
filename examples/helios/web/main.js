@@ -14,22 +14,29 @@
 
   var TARGET_NOT_SUPPORTED = 2147483647;
 
-  var currentNodeVersion = typeof process !== 'undefined' && process?.versions?.node ? humanReadableVersionToPacked(process.versions.node) : TARGET_NOT_SUPPORTED;
+  // Note: We use a typeof check here instead of optional chaining using
+  // globalThis because older browsers might not have globalThis defined.
+  var currentNodeVersion = typeof process !== 'undefined' && process.versions?.node ? humanReadableVersionToPacked(process.versions.node) : TARGET_NOT_SUPPORTED;
   if (currentNodeVersion < 160000) {
     throw new Error(`This emscripten-generated code requires node v${ packedVersionToHumanReadable(160000) } (detected v${packedVersionToHumanReadable(currentNodeVersion)})`);
   }
 
-  var currentSafariVersion = typeof navigator !== 'undefined' && navigator?.userAgent?.includes("Safari/") && navigator.userAgent.match(/Version\/(\d+\.?\d*\.?\d*)/) ? humanReadableVersionToPacked(navigator.userAgent.match(/Version\/(\d+\.?\d*\.?\d*)/)[1]) : TARGET_NOT_SUPPORTED;
+  var userAgent = typeof navigator !== 'undefined' && navigator.userAgent;
+  if (!userAgent) {
+    return;
+  }
+
+  var currentSafariVersion = userAgent.includes("Safari/") && !userAgent.includes("Chrome/") && userAgent.match(/Version\/(\d+\.?\d*\.?\d*)/) ? humanReadableVersionToPacked(userAgent.match(/Version\/(\d+\.?\d*\.?\d*)/)[1]) : TARGET_NOT_SUPPORTED;
   if (currentSafariVersion < 150000) {
     throw new Error(`This emscripten-generated code requires Safari v${ packedVersionToHumanReadable(150000) } (detected v${currentSafariVersion})`);
   }
 
-  var currentFirefoxVersion = typeof navigator !== 'undefined' && navigator?.userAgent?.match(/Firefox\/(\d+(?:\.\d+)?)/) ? parseFloat(navigator.userAgent.match(/Firefox\/(\d+(?:\.\d+)?)/)[1]) : TARGET_NOT_SUPPORTED;
+  var currentFirefoxVersion = userAgent.match(/Firefox\/(\d+(?:\.\d+)?)/) ? parseFloat(userAgent.match(/Firefox\/(\d+(?:\.\d+)?)/)[1]) : TARGET_NOT_SUPPORTED;
   if (currentFirefoxVersion < 79) {
     throw new Error(`This emscripten-generated code requires Firefox v79 (detected v${currentFirefoxVersion})`);
   }
 
-  var currentChromeVersion = typeof navigator !== 'undefined' && navigator?.userAgent?.match(/Chrome\/(\d+(?:\.\d+)?)/) ? parseFloat(navigator.userAgent.match(/Chrome\/(\d+(?:\.\d+)?)/)[1]) : TARGET_NOT_SUPPORTED;
+  var currentChromeVersion = userAgent.match(/Chrome\/(\d+(?:\.\d+)?)/) ? parseFloat(userAgent.match(/Chrome\/(\d+(?:\.\d+)?)/)[1]) : TARGET_NOT_SUPPORTED;
   if (currentChromeVersion < 85) {
     throw new Error(`This emscripten-generated code requires Chrome v85 (detected v${currentChromeVersion})`);
   }
@@ -101,7 +108,7 @@ if (ENVIRONMENT_IS_NODE) {
 
   // These modules will usually be used on Node.js. Load them eagerly to avoid
   // the complexity of lazy-loading.
-  var fs = require('fs');
+  var fs = require('node:fs');
 
   scriptDirectory = __dirname + '/';
 
@@ -250,7 +257,7 @@ if (!globalThis.WebAssembly) {
 var ABORT = false;
 
 // set by exit() and abort().  Passed to 'onExit' handler.
-// NOTE: This is also used as the process return code code in shell environments
+// NOTE: This is also used as the process return code in shell environments
 // but only when noExitRuntime is false.
 var EXITSTATUS;
 
@@ -591,7 +598,7 @@ function createExportWrapper(name, nargs) {
 var wasmBinaryFile;
 
 function findWasmBinary() {
-    return locateFile('main.wasm');
+  return locateFile('main.wasm');
 }
 
 function getBinarySync(file) {
@@ -601,7 +608,7 @@ function getBinarySync(file) {
   if (readBinary) {
     return readBinary(file);
   }
-  // Throwing a plain string here, even though it not normally adviables since
+  // Throwing a plain string here, even though it not normally advisable since
   // this gets turning into an `abort` in instantiateArrayBuffer.
   throw 'both async and sync fetching of the wasm failed';
 }
@@ -912,9 +919,9 @@ async function createWasm() {
 
   
     /**
-     * @param {number} ptr
-     * @param {string} type
-     */
+   * @param {number} ptr
+   * @param {string} type
+   */
   function getValue(ptr, type = 'i8') {
     if (type.endsWith('*')) type = '*';
     switch (type) {
@@ -942,10 +949,10 @@ async function createWasm() {
 
   
     /**
-     * @param {number} ptr
-     * @param {number} value
-     * @param {string} type
-     */
+   * @param {number} ptr
+   * @param {number} value
+   * @param {string} type
+   */
   function setValue(ptr, value, type = 'i8') {
     if (type.endsWith('*')) type = '*';
     switch (type) {
@@ -1223,7 +1230,7 @@ async function createWasm() {
       if (!getEnvStrings.strings) {
         // Default values.
         // Browser language detection #8751
-        var lang = ((typeof navigator == 'object' && navigator.language) || 'C').replace('-', '_') + '.UTF-8';
+        var lang = (globalThis.navigator?.language ?? 'C').replace('-', '_') + '.UTF-8';
         var env = {
           'USER': 'web_user',
           'LOGNAME': 'web_user',
@@ -1331,105 +1338,105 @@ async function createWasm() {
         return root + dir;
       },
   basename:(path) => path && path.match(/([^\/]+|\/)\/*$/)[1],
-  join:(...paths) => PATH.normalize(paths.join('/')),
-  join2:(l, r) => PATH.normalize(l + '/' + r),
+join:(...paths) => PATH.normalize(paths.join('/')),
+join2:(l, r) => PATH.normalize(l + '/' + r),
+};
+
+var initRandomFill = () => {
+    // This block is not needed on v19+ since crypto.getRandomValues is builtin
+    if (ENVIRONMENT_IS_NODE) {
+      var nodeCrypto = require('node:crypto');
+      return (view) => nodeCrypto.randomFillSync(view);
+    }
+
+    return (view) => crypto.getRandomValues(view);
   };
-  
-  var initRandomFill = () => {
-      // This block is not needed on v19+ since crypto.getRandomValues is builtin
-      if (ENVIRONMENT_IS_NODE) {
-        var nodeCrypto = require('crypto');
-        return (view) => nodeCrypto.randomFillSync(view);
+var randomFill = (view) => {
+    // Lazily init on the first invocation.
+    (randomFill = initRandomFill())(view);
+  };
+
+
+
+var PATH_FS = {
+resolve:(...args) => {
+      var resolvedPath = '',
+        resolvedAbsolute = false;
+      for (var i = args.length - 1; i >= -1 && !resolvedAbsolute; i--) {
+        var path = (i >= 0) ? args[i] : FS.cwd();
+        // Skip empty and invalid entries
+        if (typeof path != 'string') {
+          throw new TypeError('Arguments to path.resolve must be strings');
+        } else if (!path) {
+          return ''; // an invalid portion invalidates the whole thing
+        }
+        resolvedPath = path + '/' + resolvedPath;
+        resolvedAbsolute = PATH.isAbs(path);
       }
-  
-      return (view) => crypto.getRandomValues(view);
-    };
-  var randomFill = (view) => {
-      // Lazily init on the first invocation.
-      (randomFill = initRandomFill())(view);
-    };
-  
-  
-  
-  var PATH_FS = {
-  resolve:(...args) => {
-        var resolvedPath = '',
-          resolvedAbsolute = false;
-        for (var i = args.length - 1; i >= -1 && !resolvedAbsolute; i--) {
-          var path = (i >= 0) ? args[i] : FS.cwd();
-          // Skip empty and invalid entries
-          if (typeof path != 'string') {
-            throw new TypeError('Arguments to path.resolve must be strings');
-          } else if (!path) {
-            return ''; // an invalid portion invalidates the whole thing
-          }
-          resolvedPath = path + '/' + resolvedPath;
-          resolvedAbsolute = PATH.isAbs(path);
+      // At this point the path should be resolved to a full absolute path, but
+      // handle relative paths to be safe (might happen when process.cwd() fails)
+      resolvedPath = PATH.normalizeArray(resolvedPath.split('/').filter((p) => !!p), !resolvedAbsolute).join('/');
+      return ((resolvedAbsolute ? '/' : '') + resolvedPath) || '.';
+    },
+relative:(from, to) => {
+      from = PATH_FS.resolve(from).slice(1);
+      to = PATH_FS.resolve(to).slice(1);
+      function trim(arr) {
+        var start = 0;
+        for (; start < arr.length; start++) {
+          if (arr[start] !== '') break;
         }
-        // At this point the path should be resolved to a full absolute path, but
-        // handle relative paths to be safe (might happen when process.cwd() fails)
-        resolvedPath = PATH.normalizeArray(resolvedPath.split('/').filter((p) => !!p), !resolvedAbsolute).join('/');
-        return ((resolvedAbsolute ? '/' : '') + resolvedPath) || '.';
-      },
-  relative:(from, to) => {
-        from = PATH_FS.resolve(from).slice(1);
-        to = PATH_FS.resolve(to).slice(1);
-        function trim(arr) {
-          var start = 0;
-          for (; start < arr.length; start++) {
-            if (arr[start] !== '') break;
-          }
-          var end = arr.length - 1;
-          for (; end >= 0; end--) {
-            if (arr[end] !== '') break;
-          }
-          if (start > end) return [];
-          return arr.slice(start, end - start + 1);
+        var end = arr.length - 1;
+        for (; end >= 0; end--) {
+          if (arr[end] !== '') break;
         }
-        var fromParts = trim(from.split('/'));
-        var toParts = trim(to.split('/'));
-        var length = Math.min(fromParts.length, toParts.length);
-        var samePartsLength = length;
-        for (var i = 0; i < length; i++) {
-          if (fromParts[i] !== toParts[i]) {
-            samePartsLength = i;
-            break;
-          }
+        if (start > end) return [];
+        return arr.slice(start, end - start + 1);
+      }
+      var fromParts = trim(from.split('/'));
+      var toParts = trim(to.split('/'));
+      var length = Math.min(fromParts.length, toParts.length);
+      var samePartsLength = length;
+      for (var i = 0; i < length; i++) {
+        if (fromParts[i] !== toParts[i]) {
+          samePartsLength = i;
+          break;
         }
-        var outputParts = [];
-        for (var i = samePartsLength; i < fromParts.length; i++) {
-          outputParts.push('..');
-        }
-        outputParts = outputParts.concat(toParts.slice(samePartsLength));
-        return outputParts.join('/');
-      },
+      }
+      var outputParts = [];
+      for (var i = samePartsLength; i < fromParts.length; i++) {
+        outputParts.push('..');
+      }
+      outputParts = outputParts.concat(toParts.slice(samePartsLength));
+      return outputParts.join('/');
+    },
+};
+
+
+var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
+
+var findStringEnd = (heapOrArray, idx, maxBytesToRead, ignoreNul) => {
+    var maxIdx = idx + maxBytesToRead;
+    if (ignoreNul) return maxIdx;
+    // TextDecoder needs to know the byte length in advance, it doesn't stop on
+    // null terminator by itself.
+    // As a tiny code save trick, compare idx against maxIdx using a negation,
+    // so that maxBytesToRead=undefined/NaN means Infinity.
+    while (heapOrArray[idx] && !(idx >= maxIdx)) ++idx;
+    return idx;
   };
-  
-  
-  var UTF8Decoder = globalThis.TextDecoder && new TextDecoder();
-  
-  var findStringEnd = (heapOrArray, idx, maxBytesToRead, ignoreNul) => {
-      var maxIdx = idx + maxBytesToRead;
-      if (ignoreNul) return maxIdx;
-      // TextDecoder needs to know the byte length in advance, it doesn't stop on
-      // null terminator by itself.
-      // As a tiny code save trick, compare idx against maxIdx using a negation,
-      // so that maxBytesToRead=undefined/NaN means Infinity.
-      while (heapOrArray[idx] && !(idx >= maxIdx)) ++idx;
-      return idx;
-    };
-  
-  
-    /**
-     * Given a pointer 'idx' to a null-terminated UTF8-encoded string in the given
-     * array that contains uint8 values, returns a copy of that string as a
-     * Javascript String object.
-     * heapOrArray is either a regular array, or a JavaScript typed array view.
-     * @param {number=} idx
-     * @param {number=} maxBytesToRead
-     * @param {boolean=} ignoreNul - If true, the function will not stop on a NUL character.
-     * @return {string}
-     */
+
+
+  /**
+   * Given a pointer 'idx' to a null-terminated UTF8-encoded string in the given
+   * array that contains uint8 values, returns a copy of that string as a
+   * Javascript String object.
+   * heapOrArray is either a regular array, or a JavaScript typed array view.
+   * @param {number=} idx
+   * @param {number=} maxBytesToRead
+   * @param {boolean=} ignoreNul - If true, the function will not stop on a NUL character.
+   * @return {string}
+   */
   var UTF8ArrayToString = (heapOrArray, idx = 0, maxBytesToRead, ignoreNul) => {
   
       var endPtr = findStringEnd(heapOrArray, idx, maxBytesToRead, ignoreNul);
@@ -1677,7 +1684,7 @@ async function createWasm() {
       },
   createNode(parent, name, mode, dev) {
         if (FS.isBlkdev(mode) || FS.isFIFO(mode)) {
-          // no supported
+          // not supported
           throw new FS.ErrnoError(63);
         }
         MEMFS.ops_table ||= {
@@ -1897,7 +1904,7 @@ async function createWasm() {
           // If the buffer is located in main memory (HEAP), and if
           // memory can grow, we can't hold on to references of the
           // memory buffer, as they may get invalidated. That means we
-          // need to do copy its contents.
+          // need to copy its contents.
           if (buffer.buffer === HEAP8.buffer) {
             canOwn = false;
           }
@@ -2017,18 +2024,18 @@ async function createWasm() {
   
   
     /**
-     * Given a pointer 'ptr' to a null-terminated UTF8-encoded string in the
-     * emscripten HEAP, returns a copy of that string as a Javascript String object.
-     *
-     * @param {number} ptr
-     * @param {number=} maxBytesToRead - An optional length that specifies the
-     *   maximum number of bytes to read. You can omit this parameter to scan the
-     *   string until the first 0 byte. If maxBytesToRead is passed, and the string
-     *   at [ptr, ptr+maxBytesToReadr[ contains a null byte in the middle, then the
-     *   string will cut short at that byte index.
-     * @param {boolean=} ignoreNul - If true, the function will not stop on a NUL character.
-     * @return {string}
-     */
+   * Given a pointer 'ptr' to a null-terminated UTF8-encoded string in the
+   * emscripten HEAP, returns a copy of that string as a Javascript String object.
+   *
+   * @param {number} ptr
+   * @param {number=} maxBytesToRead - An optional length that specifies the
+   *   maximum number of bytes to read. You can omit this parameter to scan the
+   *   string until the first 0 byte. If maxBytesToRead is passed, and the string
+   *   at [ptr, ptr+maxBytesToReadr[ contains a null byte in the middle, then the
+   *   string will cut short at that byte index.
+   * @param {boolean=} ignoreNul - If true, the function will not stop on a NUL character.
+   * @return {string}
+   */
   var UTF8ToString = (ptr, maxBytesToRead, ignoreNul) => {
       assert(typeof ptr == 'number', `UTF8ToString expects a number (got ${typeof ptr})`);
       return ptr ? UTF8ArrayToString(HEAPU8, ptr, maxBytesToRead, ignoreNul) : '';
@@ -2190,7 +2197,7 @@ async function createWasm() {
           return plugin['handle'](byteArray, fullname);
         }
       }
-      // In no plugin handled this file then return the original/unmodified
+      // If no plugin handled this file then return the original/unmodified
       // byteArray.
       return byteArray;
     };
@@ -2689,12 +2696,13 @@ async function createWasm() {
         };
   
         // sync all mounts
-        mounts.forEach((mount) => {
-          if (!mount.type.syncfs) {
-            return done(null);
+        for (var mount of mounts) {
+          if (mount.type.syncfs) {
+            mount.type.syncfs(mount, populate, done);
+          } else {
+            done(null);
           }
-          mount.type.syncfs(mount, populate, done);
-        });
+        }
       },
   mount(type, opts, mountpoint) {
         if (typeof type == 'string') {
@@ -2761,9 +2769,7 @@ async function createWasm() {
         var mount = node.mounted;
         var mounts = FS.getMounts(mount);
   
-        Object.keys(FS.nameTable).forEach((hash) => {
-          var current = FS.nameTable[hash];
-  
+        for (var [hash, current] of Object.entries(FS.nameTable)) {
           while (current) {
             var next = current.name_next;
   
@@ -2773,7 +2779,7 @@ async function createWasm() {
   
             current = next;
           }
-        });
+        }
   
         // no longer a mountpoint
         node.mounted = null;
@@ -3181,7 +3187,7 @@ async function createWasm() {
           } else {
             // node doesn't exist, try to create it
             // Ignore the permission bits here to ensure we can `open` this new
-            // file below. We use chmod below the apply the permissions once the
+            // file below. We use chmod below to apply the permissions once the
             // file is open.
             node = FS.mknod(path, mode | 0o777, 0);
             created = true;
@@ -3817,14 +3823,12 @@ async function createWasm() {
         });
         // override each stream op with one that tries to force load the lazy file first
         var stream_ops = {};
-        var keys = Object.keys(node.stream_ops);
-        keys.forEach((key) => {
-          var fn = node.stream_ops[key];
+        for (const [key, fn] of Object.entries(node.stream_ops)) {
           stream_ops[key] = (...args) => {
             FS.forceLoadFile(node);
             return fn(...args);
           };
-        });
+        }
         function writeChunks(stream, buffer, offset, length, position) {
           var contents = stream.node.contents;
           if (position >= contents.length)
@@ -3881,7 +3885,6 @@ async function createWasm() {
   };
   
   var SYSCALLS = {
-  DEFAULT_POLLMASK:5,
   calculateAt(dirfd, path, allowEmpty) {
         if (PATH.isAbs(path)) {
           return path;
@@ -4130,11 +4133,11 @@ async function createWasm() {
   
   
     /**
-     * @param {string|null=} returnType
-     * @param {Array=} argTypes
-     * @param {Array=} args
-     * @param {Object=} opts
-     */
+   * @param {string|null=} returnType
+   * @param {Array=} argTypes
+   * @param {Array=} args
+   * @param {Object=} opts
+   */
   var ccall = (ident, returnType, argTypes, args, opts) => {
       // For fast lookup of conversion functions
       var toC = {
@@ -4187,10 +4190,10 @@ async function createWasm() {
 
   
     /**
-     * @param {string=} returnType
-     * @param {Array=} argTypes
-     * @param {Object=} opts
-     */
+   * @param {string=} returnType
+   * @param {Array=} argTypes
+   * @param {Object=} opts
+   */
   var cwrap = (ident, returnType, argTypes, opts) => {
       return (...args) => ccall(ident, returnType, argTypes, args, opts);
     };
@@ -4665,31 +4668,34 @@ function checkIncomingModuleAPI() {
   ignoredModuleProp('fetchSettings');
 }
 var ASM_CONSTS = {
-  86556: ($0) => { document.body.style = allocateUTF8(""); document.body.innerHTML = UTF8ToString($0); },  
- 86644: ($0) => { document.title = UTF8ToString($0); },  
- 86683: ($0, $1) => { if (!document.getElementById("__ink_styles")) { const style = document.createElement("style"); style.id = "__ink_styles_" + UTF8ToString($0); style.innerHTML = UTF8ToString($1); document.head.appendChild(style); } },  
- 86901: ($0) => { const style = document.getElementById("__ink_styles_" + UTF8ToString($0)); if (style) { style.remove(); } },  
- 87011: ($0, $1) => { if ($1 == 1){ const script = document.createElement("script"); script.src = UTF8ToString($0); document.head.appendChild(script); } else { const linkElem = document.createElement("link"); linkElem.rel = "stylesheet"; linkElem.href = UTF8ToString($0); document.head.appendChild(linkElem); } },  
- 87304: ($0) => { const linkElem = document.createElement("link"); linkElem.rel = "icon"; linkElem.href = UTF8ToString($0); linkElem.type = "image/x-icon"; document.head.appendChild(linkElem); },  
- 87483: ($0, $1) => { document.body.setAttribute(UTF8ToString($0), UTF8ToString($1)); },  
- 87551: ($0, $1) => { const id = UTF8ToString($0); if (!document.getElementById(id)) { document.body.insertAdjacentHTML("beforeend", UTF8ToString($1)); } },  
- 87687: () => { function rafLoop() { Module._animatefps(); requestAnimationFrame(rafLoop); } requestAnimationFrame(rafLoop); },  
- 87800: ($0) => { window.addEventListener(UTF8ToString($0), function () { Module._handleEvent($0); }); },  
- 87889: ($0, $1) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.textContent = UTF8ToString($1); },  
- 88015: ($0, $1, $2) => { const el = document.getElementById(UTF8ToString($0)); if (!el) return; el.setAttribute(UTF8ToString($1), UTF8ToString($2)); },  
- 88143: ($0, $1) => { const el = document.getElementById(UTF8ToString($0)); if (!el) return; el.removeAttribute(UTF8ToString($1)); },  
- 88256: ($0, $1) => { el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) { el.attributes['data-ink-id'] = UTF8ToString($1); } },  
- 88394: () => { Module._handleRoute(allocateUTF8(window.location.pathname)); window.addEventListener("popstate", () => { Module._handleRoute(allocateUTF8(window.location.pathname)); }); },  
- 88568: ($0) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.remove(); },  
- 88672: ($0, $1) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.outerHTML = UTF8ToString($1); },  
- 88796: ($0, $1) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.outerHTML = UTF8ToString($1); },  
- 88920: ($0, $1) => { const parent = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (parent) parent.insertAdjacentHTML('beforeend', UTF8ToString($1)); },  
- 89077: ($0) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.remove(); },  
- 89181: () => { return document.documentElement.clientHeight || document.body.clientHeight; },  
- 89261: () => { return document.documentElement.clientWidth || document.body.clientWidth; },  
- 89339: ($0, $1) => { window.wasmState = window.wasmState || {}; if (window.wasmState[UTF8ToString($0)] === undefined) { window.wasmState[UTF8ToString($0)] = $1; } },  
- 89485: ($0, $1) => { window.wasmState = window.wasmState || {}; window.wasmState[UTF8ToString($0)] = $1; },  
- 89573: ($0) => { window.wasmState = window.wasmState || {}; var val = window.wasmState[UTF8ToString($0)]; return (val === undefined) ? 0 : val; }
+  84916: ($0) => { document.body.style = allocateUTF8(""); document.body.innerHTML = UTF8ToString($0); },  
+ 85004: ($0) => { document.title = UTF8ToString($0); },  
+ 85043: ($0, $1) => { if (!document.getElementById("__ink_styles")) { const style = document.createElement("style"); style.id = "__ink_styles_" + UTF8ToString($0); style.innerHTML = UTF8ToString($1); document.head.appendChild(style); } },  
+ 85261: ($0) => { const style = document.getElementById("__ink_styles_" + UTF8ToString($0)); if (style) { style.remove(); } },  
+ 85371: ($0, $1) => { if ($1 == 1){ const script = document.createElement("script"); script.src = UTF8ToString($0); document.head.appendChild(script); } else { const linkElem = document.createElement("link"); linkElem.rel = "stylesheet"; linkElem.href = UTF8ToString($0); document.head.appendChild(linkElem); } },  
+ 85664: ($0) => { const linkElem = document.createElement("link"); linkElem.rel = "icon"; linkElem.href = UTF8ToString($0); linkElem.type = "image/x-icon"; document.head.appendChild(linkElem); },  
+ 85843: ($0, $1) => { document.body.setAttribute(UTF8ToString($0), UTF8ToString($1)); },  
+ 85911: ($0, $1) => { const id = UTF8ToString($0); if (!document.getElementById(id)) { document.body.insertAdjacentHTML("beforeend", UTF8ToString($1)); } },  
+ 86047: () => { function rafLoop() { Module._animatefps(); requestAnimationFrame(rafLoop); } requestAnimationFrame(rafLoop); },  
+ 86160: ($0) => { window.addEventListener(UTF8ToString($0), function () { Module._handleEvent($0); }); },  
+ 86249: ($0, $1) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.textContent = UTF8ToString($1); },  
+ 86375: ($0, $1, $2) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (!el) return; el.setAttribute(UTF8ToString($1), UTF8ToString($2)); },  
+ 86528: ($0, $1) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (!el) return; el.removeAttribute(UTF8ToString($1)); },  
+ 86666: ($0, $1) => { el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) { el.attributes['data-ink-id'] = UTF8ToString($1); } },  
+ 86804: () => { Module._handleRoute(allocateUTF8(window.location.pathname)); window.addEventListener("popstate", () => { Module._handleRoute(allocateUTF8(window.location.pathname)); }); },  
+ 86978: ($0) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.remove(); },  
+ 87082: ($0, $1) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.outerHTML = UTF8ToString($1); },  
+ 87206: ($0, $1) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.outerHTML = UTF8ToString($1); },  
+ 87330: ($0, $1) => { const parent = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (parent) parent.insertAdjacentHTML('beforeend', UTF8ToString($1)); },  
+ 87487: ($0) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.remove(); },  
+ 87591: () => { return document.documentElement.clientHeight || document.body.clientHeight; },  
+ 87671: () => { return document.documentElement.clientWidth || document.body.clientWidth; },  
+ 87749: ($0, $1) => { window.wasmState = window.wasmState || {}; if (window.wasmState[UTF8ToString($0)] === undefined) { window.wasmState[UTF8ToString($0)] = $1; } },  
+ 87895: ($0, $1) => { window.wasmState = window.wasmState || {}; if (window.wasmState[UTF8ToString($0)] === undefined) { window.wasmState[UTF8ToString($0)] = UTF8ToString($1); } },  
+ 88055: ($0, $1) => { window.wasmState = window.wasmState || {}; window.wasmState[UTF8ToString($0)] = $1; },  
+ 88143: ($0) => { window.wasmState = window.wasmState || {}; var val = window.wasmState[UTF8ToString($0)]; return (val === undefined) ? 0 : val; },  
+ 88274: ($0, $1) => { window.wasmState = window.wasmState || {}; window.wasmState[UTF8ToString($0)] = UTF8ToString($1); },  
+ 88376: ($0) => { window.wasmState = window.wasmState || {}; var val = window.wasmState[UTF8ToString($0)]; if (val === undefined) { val = ""; } var length = lengthBytesUTF8(val) + 1; var buffer = _malloc(length); stringToUTF8(val, buffer, length); return buffer; }
 };
 
 // Imports from the Wasm binary.
@@ -4729,71 +4735,71 @@ var __indirect_function_table = makeInvalidEarlyAccess('__indirect_function_tabl
 var wasmMemory = makeInvalidEarlyAccess('wasmMemory');
 
 function assignWasmExports(wasmExports) {
-  assert(wasmExports['invokeVNodeCallback'], 'missing Wasm export: invokeVNodeCallback');
+  assert(typeof wasmExports['invokeVNodeCallback'] != 'undefined', 'missing Wasm export: invokeVNodeCallback');
+  assert(typeof wasmExports['js_insertHTML'] != 'undefined', 'missing Wasm export: js_insertHTML');
+  assert(typeof wasmExports['handleRoute'] != 'undefined', 'missing Wasm export: handleRoute');
+  assert(typeof wasmExports['js_setTitle'] != 'undefined', 'missing Wasm export: js_setTitle');
+  assert(typeof wasmExports['js_insertCSS'] != 'undefined', 'missing Wasm export: js_insertCSS');
+  assert(typeof wasmExports['js_removeInlineCSS'] != 'undefined', 'missing Wasm export: js_removeInlineCSS');
+  assert(typeof wasmExports['js_addscript'] != 'undefined', 'missing Wasm export: js_addscript');
+  assert(typeof wasmExports['js_setBodyAttr'] != 'undefined', 'missing Wasm export: js_setBodyAttr');
+  assert(typeof wasmExports['allocateString'] != 'undefined', 'missing Wasm export: allocateString');
+  assert(typeof wasmExports['malloc'] != 'undefined', 'missing Wasm export: malloc');
+  assert(typeof wasmExports['freeString'] != 'undefined', 'missing Wasm export: freeString');
+  assert(typeof wasmExports['free'] != 'undefined', 'missing Wasm export: free');
+  assert(typeof wasmExports['js_mountCanvas'] != 'undefined', 'missing Wasm export: js_mountCanvas');
+  assert(typeof wasmExports['animatefps'] != 'undefined', 'missing Wasm export: animatefps');
+  assert(typeof wasmExports['js_reqfps'] != 'undefined', 'missing Wasm export: js_reqfps');
+  assert(typeof wasmExports['handleEvent'] != 'undefined', 'missing Wasm export: handleEvent');
+  assert(typeof wasmExports['js_addpageEventlisteners'] != 'undefined', 'missing Wasm export: js_addpageEventlisteners');
+  assert(typeof wasmExports['js_setText'] != 'undefined', 'missing Wasm export: js_setText');
+  assert(typeof wasmExports['js_setAttr'] != 'undefined', 'missing Wasm export: js_setAttr');
+  assert(typeof wasmExports['js_removeAttr'] != 'undefined', 'missing Wasm export: js_removeAttr');
+  assert(typeof wasmExports['js_update_ink_id'] != 'undefined', 'missing Wasm export: js_update_ink_id');
+  assert(typeof wasmExports['main'] != 'undefined', 'missing Wasm export: main');
+  assert(typeof wasmExports['fflush'] != 'undefined', 'missing Wasm export: fflush');
+  assert(typeof wasmExports['strerror'] != 'undefined', 'missing Wasm export: strerror');
+  assert(typeof wasmExports['emscripten_stack_get_end'] != 'undefined', 'missing Wasm export: emscripten_stack_get_end');
+  assert(typeof wasmExports['emscripten_stack_get_base'] != 'undefined', 'missing Wasm export: emscripten_stack_get_base');
+  assert(typeof wasmExports['emscripten_stack_init'] != 'undefined', 'missing Wasm export: emscripten_stack_init');
+  assert(typeof wasmExports['emscripten_stack_get_free'] != 'undefined', 'missing Wasm export: emscripten_stack_get_free');
+  assert(typeof wasmExports['_emscripten_stack_restore'] != 'undefined', 'missing Wasm export: _emscripten_stack_restore');
+  assert(typeof wasmExports['_emscripten_stack_alloc'] != 'undefined', 'missing Wasm export: _emscripten_stack_alloc');
+  assert(typeof wasmExports['emscripten_stack_get_current'] != 'undefined', 'missing Wasm export: emscripten_stack_get_current');
+  assert(typeof wasmExports['memory'] != 'undefined', 'missing Wasm export: memory');
+  assert(typeof wasmExports['__indirect_function_table'] != 'undefined', 'missing Wasm export: __indirect_function_table');
   _invokeVNodeCallback = Module['_invokeVNodeCallback'] = createExportWrapper('invokeVNodeCallback', 1);
-  assert(wasmExports['js_insertHTML'], 'missing Wasm export: js_insertHTML');
   _js_insertHTML = Module['_js_insertHTML'] = createExportWrapper('js_insertHTML', 1);
-  assert(wasmExports['handleRoute'], 'missing Wasm export: handleRoute');
   _handleRoute = Module['_handleRoute'] = createExportWrapper('handleRoute', 1);
-  assert(wasmExports['js_setTitle'], 'missing Wasm export: js_setTitle');
   _js_setTitle = Module['_js_setTitle'] = createExportWrapper('js_setTitle', 1);
-  assert(wasmExports['js_insertCSS'], 'missing Wasm export: js_insertCSS');
   _js_insertCSS = Module['_js_insertCSS'] = createExportWrapper('js_insertCSS', 2);
-  assert(wasmExports['js_removeInlineCSS'], 'missing Wasm export: js_removeInlineCSS');
   _js_removeInlineCSS = Module['_js_removeInlineCSS'] = createExportWrapper('js_removeInlineCSS', 1);
-  assert(wasmExports['js_addscript'], 'missing Wasm export: js_addscript');
   _js_addscript = Module['_js_addscript'] = createExportWrapper('js_addscript', 2);
-  assert(wasmExports['js_setBodyAttr'], 'missing Wasm export: js_setBodyAttr');
   _js_setBodyAttr = Module['_js_setBodyAttr'] = createExportWrapper('js_setBodyAttr', 2);
-  assert(wasmExports['allocateString'], 'missing Wasm export: allocateString');
   _allocateString = Module['_allocateString'] = createExportWrapper('allocateString', 1);
-  assert(wasmExports['malloc'], 'missing Wasm export: malloc');
   _malloc = Module['_malloc'] = createExportWrapper('malloc', 1);
-  assert(wasmExports['freeString'], 'missing Wasm export: freeString');
   _freeString = Module['_freeString'] = createExportWrapper('freeString', 1);
-  assert(wasmExports['free'], 'missing Wasm export: free');
   _free = Module['_free'] = createExportWrapper('free', 1);
-  assert(wasmExports['js_mountCanvas'], 'missing Wasm export: js_mountCanvas');
   _js_mountCanvas = Module['_js_mountCanvas'] = createExportWrapper('js_mountCanvas', 2);
-  assert(wasmExports['animatefps'], 'missing Wasm export: animatefps');
   _animatefps = Module['_animatefps'] = createExportWrapper('animatefps', 0);
-  assert(wasmExports['js_reqfps'], 'missing Wasm export: js_reqfps');
   _js_reqfps = Module['_js_reqfps'] = createExportWrapper('js_reqfps', 0);
-  assert(wasmExports['handleEvent'], 'missing Wasm export: handleEvent');
   _handleEvent = Module['_handleEvent'] = createExportWrapper('handleEvent', 1);
-  assert(wasmExports['js_addpageEventlisteners'], 'missing Wasm export: js_addpageEventlisteners');
   _js_addpageEventlisteners = Module['_js_addpageEventlisteners'] = createExportWrapper('js_addpageEventlisteners', 1);
-  assert(wasmExports['js_setText'], 'missing Wasm export: js_setText');
   _js_setText = Module['_js_setText'] = createExportWrapper('js_setText', 2);
-  assert(wasmExports['js_setAttr'], 'missing Wasm export: js_setAttr');
   _js_setAttr = Module['_js_setAttr'] = createExportWrapper('js_setAttr', 3);
-  assert(wasmExports['js_removeAttr'], 'missing Wasm export: js_removeAttr');
   _js_removeAttr = Module['_js_removeAttr'] = createExportWrapper('js_removeAttr', 2);
-  assert(wasmExports['js_update_ink_id'], 'missing Wasm export: js_update_ink_id');
   _js_update_ink_id = Module['_js_update_ink_id'] = createExportWrapper('js_update_ink_id', 2);
-  assert(wasmExports['main'], 'missing Wasm export: main');
   _main = Module['_main'] = createExportWrapper('main', 2);
-  assert(wasmExports['fflush'], 'missing Wasm export: fflush');
   _fflush = createExportWrapper('fflush', 1);
-  assert(wasmExports['strerror'], 'missing Wasm export: strerror');
   _strerror = createExportWrapper('strerror', 1);
-  assert(wasmExports['emscripten_stack_get_end'], 'missing Wasm export: emscripten_stack_get_end');
   _emscripten_stack_get_end = wasmExports['emscripten_stack_get_end'];
-  assert(wasmExports['emscripten_stack_get_base'], 'missing Wasm export: emscripten_stack_get_base');
   _emscripten_stack_get_base = wasmExports['emscripten_stack_get_base'];
-  assert(wasmExports['emscripten_stack_init'], 'missing Wasm export: emscripten_stack_init');
   _emscripten_stack_init = wasmExports['emscripten_stack_init'];
-  assert(wasmExports['emscripten_stack_get_free'], 'missing Wasm export: emscripten_stack_get_free');
   _emscripten_stack_get_free = wasmExports['emscripten_stack_get_free'];
-  assert(wasmExports['_emscripten_stack_restore'], 'missing Wasm export: _emscripten_stack_restore');
   __emscripten_stack_restore = wasmExports['_emscripten_stack_restore'];
-  assert(wasmExports['_emscripten_stack_alloc'], 'missing Wasm export: _emscripten_stack_alloc');
   __emscripten_stack_alloc = wasmExports['_emscripten_stack_alloc'];
-  assert(wasmExports['emscripten_stack_get_current'], 'missing Wasm export: emscripten_stack_get_current');
   _emscripten_stack_get_current = wasmExports['emscripten_stack_get_current'];
-  assert(wasmExports['memory'], 'missing Wasm export: memory');
   memory = wasmMemory = wasmExports['memory'];
-  assert(wasmExports['__indirect_function_table'], 'missing Wasm export: __indirect_function_table');
   __indirect_function_table = wasmExports['__indirect_function_table'];
 }
 
@@ -4931,7 +4937,7 @@ function checkUnflushedContent() {
   try { // it doesn't matter if it fails
     _fflush(0);
     // also flush in the JS FS layer
-    ['stdout', 'stderr'].forEach((name) => {
+    for (var name of ['stdout', 'stderr']) {
       var info = FS.analyzePath('/dev/' + name);
       if (!info) return;
       var stream = info.object;
@@ -4940,7 +4946,7 @@ function checkUnflushedContent() {
       if (tty?.output?.length) {
         has = true;
       }
-    });
+    }
   } catch(e) {}
   out = oldOut;
   err = oldErr;

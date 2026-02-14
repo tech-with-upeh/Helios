@@ -42,7 +42,7 @@ std::string WebEngine::pyxtocpp_type(enum NODE_TYPE type, AST_NODE* node) {
         case NODE_TOINT:
             return "int";
         case NODE_TOSTR:
-            return "string";
+            return "std::string";
         default:
             cerr << "Error unknown Type\n";
             break;
@@ -151,7 +151,7 @@ std::string WebEngine::MakePage(AST_NODE *p, std::string var, bool firstpage) {
                     ss << ", " << pair.first; 
                 }
             }
-            ss << "](VPage& page) {\n";
+            ss << "](VPage& page, std::string msg) {\n";
 
             for (const auto &imps : stylesheetimports) {
                 ss << "\t\tpage.addStyle(\"" << imps << "\", " << imps << ");\n";
@@ -770,7 +770,7 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
             std::string ctype = pyxtocpp_type(p->CHILD->TYPE, p->CHILD);
             // auto counter = make_shared<appstate::State<auto>>("counter", 0);
             std::string makeendvar;
-            if (ctype == "string") {
+            if (ctype == "std::string") {
                 makeendvar = "\""+  *(p->CHILD->value) +"\"";
             } else {
                 makeendvar =  *(p->CHILD->value);

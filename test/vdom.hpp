@@ -10,16 +10,23 @@
 
 // -------------------- Forward declarations --------------------
 struct VPage;
+struct VNode;
 void renderPage(VPage& page, bool statechange=false);
+std::string genId();
+void diff(const VNode& oldN, const VNode& newN);
+extern "C" {
+    EMSCRIPTEN_KEEPALIVE
+    void js_removeInlineCSS(const char* key);
+}
 
 // -------------------- Global Page State --------------------
 namespace GlobalState {
     static VPage* currentPage = nullptr;
-    
+
     static void setCurrentPage(VPage* page) {
         currentPage = page;
     }
-    
+
     static VPage* getCurrentPage() {
         return currentPage;
     }
@@ -32,13 +39,13 @@ namespace appstate {
     class State {
     private:
         std::string key;
-        
+
     public:
         State(const std::string& k, T initial) : key(k) {
             // Force initialization in JS storage
             initialize(initial);
         }
-        
+
         void initialize(T initial_value) {
             if constexpr (std::is_same_v<T, int>) {
                 EM_ASM({
@@ -57,7 +64,7 @@ namespace appstate {
                 }, key.c_str(), initial_value.c_str());
             }
         }
-        
+
         void set(T new_value) {
             if constexpr (std::is_same_v<T, int>) {
                 EM_ASM({
@@ -71,7 +78,7 @@ namespace appstate {
                 }, key.c_str(), new_value.c_str());
             }
         }
-        
+
         T get() const {
             if constexpr (std::is_same_v<T, int>) {
                 return EM_ASM_INT({
@@ -92,7 +99,7 @@ namespace appstate {
                     stringToUTF8(val, buffer, length);
                     return buffer;
                 }, key.c_str());
-                
+
                 if (result) {
                     std::string str(result);
                     free(result);
@@ -113,14 +120,14 @@ class CallbackRegistry {
 private:
     static std::unordered_map<std::string, std::function<void()>> callbacks;
     static int nextId;
-    
+
 public:
     static std::string registerCallback(std::function<void()> callback) {
         std::string id = "callback_" + std::to_string(nextId++);
         callbacks[id] = callback;
         return id;
     }
-    
+
     static void invokeCallback(const std::string& id) {
         auto it = callbacks.find(id);
         if (it != callbacks.end()) {
@@ -147,7 +154,8 @@ struct VNode {
     std::string canvasid = "main-canvas";
 
     std::string tag;
-    
+    std::string dom_id;
+    std::string id;
     std::string text;
     std::vector<VNode> children;
     std::unordered_map<std::string, std::string> attrs;
@@ -155,27 +163,31 @@ struct VNode {
     std::string callback_id;
 
     VNode() = default;
-    VNode(std::string t, std::string txt="") : tag(t), text(txt) {}
-    
+    VNode(std::string t, std::string txt="", std::string_view ink_domid = "") : tag(t), text(txt), dom_id(ink_domid) {
+    }
+
     // Helper methods for building VNodes
     VNode& setText(const std::string& newText) {
         text = newText;
         return *this;
     }
-    
+
     VNode& setAttr(const std::string& key, const std::string& value) {
-        if(key == "id" || type == VNodeType::CANVAS) {
-            canvasid = value;
+        if(key == "id") {
+            if (type == VNodeType::CANVAS) {
+                 canvasid = value;
+            }
+            id = value;
         }
         attrs[key] = value;
         return *this;
     }
-    
+
     VNode& addChild(const VNode& child) {
         children.push_back(child);
         return *this;
     }
-    
+
     VNode& onClick(std::function<void()> handler) {
         onclick = handler;
         return *this;
@@ -186,10 +198,11 @@ struct VNode {
 struct VPage {
     std::string title;
     std::vector<VNode> children;
+    std::vector<VNode> old_children; 
     std::unordered_map<std::string, std::string> bodyAttrs;
-    std::string stylesheet;
+    std::unordered_map<std::string, std::string> stylesheet;
 
-    std::function<void(VPage&)> builder; 
+    std::function<void(VPage&, std::string msg)> builder; 
     std::vector<std::function<void()>> onMount_list;
     bool reqanimate = false;
     std::function<void()> onanimate;
@@ -201,35 +214,42 @@ struct VPage {
 
 
 
-    
+
     // Helper methods
     VPage& setTitle(const std::string& newTitle) {
         title = newTitle;
         return *this;
     }
 
-    VPage& addStyle(const std::string& newstylesheet) {
-        stylesheet = newstylesheet;
+    VPage& addStyle(const std::string& key, const std::string& newstylesheet) {
+        stylesheet[key] = newstylesheet;
         return *this;
     }
-    
+
+    VPage& removeStyle(const std::string& key) {
+        js_removeInlineCSS(key.c_str());
+        stylesheet.erase(key);
+        return *this;
+    }
+
     VPage& addChild(const VNode& child) {
         children.push_back(child);
         return *this;
     }
-    
+
     VPage& clearChildren() {
         children.clear();
         onMount_list.clear();
         return *this;
     }
 
-    void rebuild() {
+    void rebuild(std::string msg = "") {
         if (!builder) return;
+        old_children = children;
         clearChildren();
-        builder(*this);
+        builder(*this, msg);
     }
-    
+
     // Render this page
     void render(bool statechange=false) {
         rebuild();
@@ -273,12 +293,12 @@ public:
                 const ctx = document.getElementById(UTF8ToString($0)).getContext("2d");
                 ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
             }
-            
+
         }, id.c_str());
     }
 
     // if i get lost
-    
+
     void setFill(const std::string& color) {
         EM_ASM({
             const ctx = document.getElementById(UTF8ToString($0))?.getContext("2d");
@@ -415,12 +435,12 @@ class Platform {
     public:
         int height() {
             return EM_ASM_INT({
-                return window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+                return document.documentElement.clientHeight || document.body.clientHeight;
             });
         }
         int width() {
             return EM_ASM_INT({
-                return window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+                return document.documentElement.clientWidth || document.body.clientWidth;
             });
         }
 
@@ -482,6 +502,17 @@ private:
         static std::string p;
         return p;
     }
+    
+    static Handler ErrorPage(std::string msg) {
+      static Handler err;
+      err = []() {
+                auto page = std::make_shared<VPage>();
+                page->setTitle("Helios Error");
+                page->addChild(VNode("p", "Custom Error Page"));
+                return page;
+            }();
+      return err;
+    }
 
     // 404 page
     static Handler get404() {
@@ -490,7 +521,7 @@ private:
         auto it = routes().find(notfound_path);
         if (it != routes().end() && it->second) {
             notfound = [it]() {
-                
+
                 return it->second;
             }();
         } else {
@@ -501,7 +532,7 @@ private:
                 return page;
             }();
         }
-        
+
         return notfound;
     }
 };
@@ -535,17 +566,27 @@ extern "C" {
     }
 
     EMSCRIPTEN_KEEPALIVE
-    void js_insertCSS(const char* css) {
+    void js_insertCSS(const char* key, const char* css) {
         if (strcmp(css, "") != 0){    
             EM_ASM({
                 if (!document.getElementById("__ink_styles")) {
                 const style = document.createElement("style");
-                style.id = "__ink_styles";
-                style.innerHTML = UTF8ToString($0);
+                style.id = "__ink_styles_" + UTF8ToString($0);
+                style.innerHTML = UTF8ToString($1);
                 document.head.appendChild(style);
                 }
-            }, css);
+            }, key, css);
         }
+    }
+
+    EMSCRIPTEN_KEEPALIVE
+    void js_removeInlineCSS(const char* key) {
+        EM_ASM({
+            const style = document.getElementById("__ink_styles_" + UTF8ToString($0));
+            if (style) {
+                style.remove();
+            }
+        }, key);
     }
 
     EMSCRIPTEN_KEEPALIVE
@@ -582,7 +623,7 @@ extern "C" {
             }, key, val);
         }
     }
-    
+
     EMSCRIPTEN_KEEPALIVE
     char* allocateString(const char* str) {
         size_t len = strlen(str) + 1;
@@ -590,7 +631,7 @@ extern "C" {
         strcpy(buffer, str);
         return buffer;
     }
-    
+
     EMSCRIPTEN_KEEPALIVE
     void freeString(char* str) {
         free(str);
@@ -639,6 +680,48 @@ extern "C" {
             });
         }, event);
     }
+
+    EMSCRIPTEN_KEEPALIVE
+    void js_setText(const char* id, const char* text) {
+        EM_ASM({
+            const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
+            if (el) el.textContent = UTF8ToString($1);
+        }, id, text);
+    }
+    EMSCRIPTEN_KEEPALIVE
+    void js_setAttr(const char* id, const char* key, const char* val) {
+        EM_ASM({
+            const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
+            if (!el) return;
+            el.setAttribute(UTF8ToString($1), UTF8ToString($2));
+        }, id, key, val);
+    }
+    
+EMSCRIPTEN_KEEPALIVE
+    void js_removeAttr(const char* id, const char* key) {
+        EM_ASM({
+            const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
+            if (!el) return;
+            el.removeAttribute(UTF8ToString($1));
+        }, id, key);
+    }
+
+    EMSCRIPTEN_KEEPALIVE
+    void js_update_ink_id(const char* oldid, const char* newid) {
+        EM_ASM({
+            el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
+            if (el) {
+                el.attributes['data-ink-id'] = UTF8ToString($1);
+            }
+
+        }, oldid, newid);
+    }
+
+}
+
+inline std::string genId() {
+    static int id = 0;
+    return "__ink_" + std::to_string(id++);
 }
 
 // -------------------- Render VNode to HTML --------------------
@@ -656,7 +739,8 @@ inline std::string renderToHTML(const VNode& node) {
         oss << "></canvas>";
         return oss.str();
     }
-    oss << "<" << node.tag;
+
+    oss << "<" << node.tag << " data-ink-id=\"" << node.dom_id << "\"";
 
     if(node.attrs.find("id") != node.attrs.end()) {
         oss << " id=\"" << node.attrs.at("id") << "\"";
@@ -687,13 +771,118 @@ inline void bindOnClick(VNode& node) {
         bindOnClick(child);
 }
 
+// -------------------- Diff Children --------------------
+inline void diffChildren(const VNode& oldN, const VNode& newN) {
+    size_t oldSize = oldN.children.size();
+    size_t newSize = newN.children.size();
+    size_t minSize = std::min(oldSize, newSize);
+
+    // 1. Diff existing nodes
+    for (size_t i = 0; i < minSize; i++) {
+        diff(oldN.children[i], newN.children[i]);
+    }
+
+    // 2. Add new nodes
+    for (size_t i = minSize; i < newSize; i++) {
+        const auto& child = newN.children[i];
+        EM_ASM({
+            const parent = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
+            if (parent) parent.insertAdjacentHTML('beforeend', UTF8ToString($1));
+        }, oldN.dom_id.c_str(), renderToHTML(child).c_str());
+
+        // register callbacks for new nodes
+        bindOnClick(const_cast<VNode&>(child));
+    }
+
+    // 3. Remove old extra nodes
+    for (size_t i = minSize; i < oldSize; i++) {
+        const auto& child = oldN.children[i];
+        EM_ASM({
+            const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
+            if (el) el.remove();
+        }, child.dom_id.c_str());
+    }
+}
+
+// -------------------- Diff a VNode --------------------
+inline void diff(const VNode& oldN, const VNode& newN) {
+    if (oldN.type == VNodeType::CANVAS || newN.type == VNodeType::CANVAS) {
+        // For canvas, just replace
+        if (oldN.canvasid != newN.canvasid || oldN.width != newN.width || oldN.height != newN.height) {
+            EM_ASM({
+                const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
+                if (el) el.outerHTML = UTF8ToString($1);
+            }, oldN.dom_id.c_str(), renderToHTML(newN).c_str());
+        }
+        return;
+    }
+
+    if (oldN.tag != newN.tag) {
+        EM_ASM({
+            const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
+            if (el) el.outerHTML = UTF8ToString($1);
+        }, oldN.dom_id.c_str(), renderToHTML(newN).c_str());
+
+        return;
+    }
+
+    if (oldN.text != newN.text) {
+        js_setText(oldN.dom_id.c_str(), newN.text.c_str());
+         
+    }
+
+    // Attributes
+    for (auto& [k, v] : newN.attrs) {
+        auto it = oldN.attrs.find(k);
+        if (it == oldN.attrs.end() || it->second != v) {
+            js_setAttr(oldN.dom_id.c_str(), k.c_str(), v.c_str());
+        }
+    }
+
+    for (auto& [k, v] : oldN.attrs) {
+     // std::cout << " old: " << k << " old: " << v << std::endl;
+        if (newN.attrs.find(k) == newN.attrs.end()) {
+            js_removeAttr(oldN.dom_id.c_str(), k.c_str());
+        }
+    }
+
+    // Children
+    diffChildren(oldN, newN);
+}
+
 // -------------------- Render Page --------------------
 inline void renderPage(VPage& page, bool statechange) {
-    // Set as current page for callbacks to access
+    // Set as current page for callbacks
     GlobalState::setCurrentPage(&page);
-    
+
+    if (statechange) {
+        size_t n = std::min(page.old_children.size(), page.children.size());
+        for (size_t i = 0; i < n; i++) {
+            diff(page.old_children[i], page.children[i]);
+        }
+
+        // Add new children
+        for (size_t i = n; i < page.children.size(); i++) {
+            auto& child = page.children[i];
+            js_insertHTML(renderToHTML(child).c_str());
+            bindOnClick(child);
+        }
+
+        // Remove extra old children
+        for (size_t i = n; i < page.old_children.size(); i++) {
+            EM_ASM({
+                const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
+                if (el) el.remove();
+            }, page.old_children[i].dom_id.c_str());
+        }
+
+        return;
+    }
+
+    // Initial render
     std::ostringstream html;
     std::unordered_map<std::string, std::string> canvas_list;
+
     for(auto& node : page.children) {
         bindOnClick(node);
         if (node.type == VNodeType::CANVAS) {
@@ -704,44 +893,44 @@ inline void renderPage(VPage& page, bool statechange) {
     }
 
     js_insertHTML(html.str().c_str());
+
     if (!page.favicon.empty()) {
-         js_favicon(page.favicon.c_str());
-     }
+        js_favicon(page.favicon.c_str());
+    }
     js_setTitle(page.title.c_str());
-    js_insertCSS(page.stylesheet.c_str());
-    
-    if (statechange == false) {
-        for(auto& s : page.scripts) {
-            js_addscript(s.c_str(), true);
-        }
-
-        for(auto& c : page.stylesheets) {
-            js_addscript(c.c_str(), false);
-        }
-    }
-    
-     
-
-    
-    if (!canvas_list.empty()) {
-        for (auto &i : canvas_list) {
-            js_mountCanvas(i.first.c_str(), i.second.c_str());
-        }
+    for(const auto& [key, value] : page.stylesheet) {
+        js_insertCSS(key.c_str(), value.c_str());
     }
 
-    // Apply body attributes
+    for(auto& s : page.scripts) {
+        js_addscript(s.c_str(), true);
+    }
+    for(auto& c : page.stylesheets) {
+        js_addscript(c.c_str(), false);
+    }
+
+    // Mount canvases
+    for (auto &i : canvas_list) {
+        js_mountCanvas(i.first.c_str(), i.second.c_str());
+    }
+
+    // Body attributes
     for(const auto& [key, value] : page.bodyAttrs) {
         js_setBodyAttr(key.c_str(), value.c_str());
     }
+
+    // Mount hooks
     for (auto& fn : page.onMount_list) {
         fn();
     }
+
+    // Animate FPS
     if (page.reqanimate) {
         js_reqfps();
     }
+
+    // Page-level callbacks
     for(const auto& k : page.page_callbacks) {
         js_addpageEventlisteners(k.first.c_str());
     }
-   
-     
 }
