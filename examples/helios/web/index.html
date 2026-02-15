@@ -15,13 +15,14 @@
                   this.ws = new WebSocket(`${protocol}://${location.host}/ws`);
 
                   this.ws.onmessage = (e) => {
-                      if (e.data === "r") {
+                    if (e.data === "r") {
                         location.reload();
                     };
                     if (e.data === "e") {
-                      console.log("e....");
+                        console.log("e....");
                     }
-              },
+                    }
+                },
 
               send(msg) {
                   if (this.ws?.readyState === WebSocket.OPEN) {
