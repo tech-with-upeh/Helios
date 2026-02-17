@@ -1,5 +1,6 @@
 [requires]
 uwebsockets/20.71.0
+indicators/2.3
 [generators]
 CMakeDeps
 CMakeToolchain

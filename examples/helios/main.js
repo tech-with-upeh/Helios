@@ -4665,34 +4665,34 @@ function checkIncomingModuleAPI() {
   ignoredModuleProp('loadSplitModule');
 }
 var ASM_CONSTS = {
-  86404: ($0) => { document.body.style = allocateUTF8(""); document.body.innerHTML = UTF8ToString($0); },  
- 86492: ($0) => { document.title = UTF8ToString($0); },  
- 86531: ($0, $1) => { if (!document.getElementById("__ink_styles")) { const style = document.createElement("style"); style.id = "__ink_styles_" + UTF8ToString($0); style.innerHTML = UTF8ToString($1); document.head.appendChild(style); } },  
- 86749: ($0) => { const style = document.getElementById("__ink_styles_" + UTF8ToString($0)); if (style) { style.remove(); } },  
- 86859: ($0, $1) => { if ($1 == 1){ const script = document.createElement("script"); script.src = UTF8ToString($0); document.head.appendChild(script); } else { const linkElem = document.createElement("link"); linkElem.rel = "stylesheet"; linkElem.href = UTF8ToString($0); document.head.appendChild(linkElem); } },  
- 87152: ($0) => { const linkElem = document.createElement("link"); linkElem.rel = "icon"; linkElem.href = UTF8ToString($0); linkElem.type = "image/x-icon"; document.head.appendChild(linkElem); },  
- 87331: ($0, $1) => { document.body.setAttribute(UTF8ToString($0), UTF8ToString($1)); },  
- 87399: ($0, $1) => { const id = UTF8ToString($0); if (!document.getElementById(id)) { document.body.insertAdjacentHTML("beforeend", UTF8ToString($1)); } },  
- 87535: () => { function rafLoop() { Module._animatefps(); requestAnimationFrame(rafLoop); } requestAnimationFrame(rafLoop); },  
- 87648: ($0) => { window.addEventListener(UTF8ToString($0), function () { Module._handleEvent($0); }); },  
- 87737: ($0, $1) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.textContent = UTF8ToString($1); },  
- 87863: ($0, $1, $2) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (!el) return; el.setAttribute(UTF8ToString($1), UTF8ToString($2)); },  
- 88016: ($0, $1) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (!el) return; el.removeAttribute(UTF8ToString($1)); },  
- 88154: ($0, $1) => { el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) { el.attributes['data-ink-id'] = UTF8ToString($1); } },  
- 88292: () => { Module._handleRoute(allocateUTF8(window.location.pathname)); window.addEventListener("popstate", () => { Module._handleRoute(allocateUTF8(window.location.pathname)); }); },  
- 88466: ($0) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.remove(); },  
- 88570: ($0, $1) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.outerHTML = UTF8ToString($1); },  
- 88694: ($0, $1) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.outerHTML = UTF8ToString($1); },  
- 88818: ($0, $1) => { const parent = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (parent) parent.insertAdjacentHTML('beforeend', UTF8ToString($1)); },  
- 88975: ($0) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.remove(); },  
- 89079: () => { return document.documentElement.clientHeight || document.body.clientHeight; },  
- 89159: () => { return document.documentElement.clientWidth || document.body.clientWidth; },  
- 89237: ($0, $1) => { window.wasmState = window.wasmState || {}; if (window.wasmState[UTF8ToString($0)] === undefined) { window.wasmState[UTF8ToString($0)] = $1; } },  
- 89383: ($0, $1) => { window.wasmState = window.wasmState || {}; if (window.wasmState[UTF8ToString($0)] === undefined) { window.wasmState[UTF8ToString($0)] = UTF8ToString($1); } },  
- 89543: ($0, $1) => { window.wasmState = window.wasmState || {}; window.wasmState[UTF8ToString($0)] = $1; },  
- 89631: ($0) => { window.wasmState = window.wasmState || {}; var val = window.wasmState[UTF8ToString($0)]; return (val === undefined) ? 0 : val; },  
- 89762: ($0, $1) => { window.wasmState = window.wasmState || {}; window.wasmState[UTF8ToString($0)] = UTF8ToString($1); },  
- 89864: ($0) => { window.wasmState = window.wasmState || {}; var val = window.wasmState[UTF8ToString($0)]; if (val === undefined) { val = ""; } var length = lengthBytesUTF8(val) + 1; var buffer = _malloc(length); stringToUTF8(val, buffer, length); return buffer; }
+  86436: ($0) => { document.body.style = allocateUTF8(""); document.body.innerHTML = UTF8ToString($0); },  
+ 86524: ($0) => { document.title = UTF8ToString($0); },  
+ 86563: ($0, $1) => { if (!document.getElementById("__ink_styles")) { const style = document.createElement("style"); style.id = "__ink_styles_" + UTF8ToString($0); style.innerHTML = UTF8ToString($1); document.head.appendChild(style); } },  
+ 86781: ($0) => { const style = document.getElementById("__ink_styles_" + UTF8ToString($0)); if (style) { style.remove(); } },  
+ 86891: ($0, $1) => { if ($1 == 1){ const script = document.createElement("script"); script.src = UTF8ToString($0); document.head.appendChild(script); } else { const linkElem = document.createElement("link"); linkElem.rel = "stylesheet"; linkElem.href = UTF8ToString($0); document.head.appendChild(linkElem); } },  
+ 87184: ($0) => { const linkElem = document.createElement("link"); linkElem.rel = "icon"; linkElem.href = UTF8ToString($0); linkElem.type = "image/x-icon"; document.head.appendChild(linkElem); },  
+ 87363: ($0, $1) => { document.body.setAttribute(UTF8ToString($0), UTF8ToString($1)); },  
+ 87431: ($0, $1) => { const id = UTF8ToString($0); if (!document.getElementById(id)) { document.body.insertAdjacentHTML("beforeend", UTF8ToString($1)); } },  
+ 87567: () => { function rafLoop() { Module._animatefps(); requestAnimationFrame(rafLoop); } requestAnimationFrame(rafLoop); },  
+ 87680: ($0) => { window.addEventListener(UTF8ToString($0), function () { Module._handleEvent($0); }); },  
+ 87769: ($0, $1) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.textContent = UTF8ToString($1); },  
+ 87895: ($0, $1, $2) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (!el) return; el.setAttribute(UTF8ToString($1), UTF8ToString($2)); },  
+ 88048: ($0, $1) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (!el) return; el.removeAttribute(UTF8ToString($1)); },  
+ 88186: ($0, $1) => { el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) { el.attributes['data-ink-id'] = UTF8ToString($1); } },  
+ 88324: () => { Module._handleRoute(allocateUTF8(window.location.pathname)); window.addEventListener("popstate", () => { Module._handleRoute(allocateUTF8(window.location.pathname)); }); },  
+ 88498: ($0) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.remove(); },  
+ 88602: ($0, $1) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.outerHTML = UTF8ToString($1); },  
+ 88726: ($0, $1) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.outerHTML = UTF8ToString($1); },  
+ 88850: ($0, $1) => { const parent = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (parent) parent.insertAdjacentHTML('beforeend', UTF8ToString($1)); },  
+ 89007: ($0) => { const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]'); if (el) el.remove(); },  
+ 89111: () => { return document.documentElement.clientHeight || document.body.clientHeight; },  
+ 89191: () => { return document.documentElement.clientWidth || document.body.clientWidth; },  
+ 89269: ($0, $1) => { window.wasmState = window.wasmState || {}; if (window.wasmState[UTF8ToString($0)] === undefined) { window.wasmState[UTF8ToString($0)] = $1; } },  
+ 89415: ($0, $1) => { window.wasmState = window.wasmState || {}; if (window.wasmState[UTF8ToString($0)] === undefined) { window.wasmState[UTF8ToString($0)] = UTF8ToString($1); } },  
+ 89575: ($0, $1) => { window.wasmState = window.wasmState || {}; window.wasmState[UTF8ToString($0)] = $1; },  
+ 89663: ($0) => { window.wasmState = window.wasmState || {}; var val = window.wasmState[UTF8ToString($0)]; return (val === undefined) ? 0 : val; },  
+ 89794: ($0, $1) => { window.wasmState = window.wasmState || {}; window.wasmState[UTF8ToString($0)] = UTF8ToString($1); },  
+ 89896: ($0) => { window.wasmState = window.wasmState || {}; var val = window.wasmState[UTF8ToString($0)]; if (val === undefined) { val = ""; } var length = lengthBytesUTF8(val) + 1; var buffer = _malloc(length); stringToUTF8(val, buffer, length); return buffer; }
 };
 
 // Imports from the Wasm binary.
@@ -4767,7 +4767,7 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports['__indirect_function_table'] != 'undefined', 'missing Wasm export: __indirect_function_table');
   _invokeVNodeCallback = Module['_invokeVNodeCallback'] = createExportWrapper('invokeVNodeCallback', 1);
   _js_insertHTML = Module['_js_insertHTML'] = createExportWrapper('js_insertHTML', 1);
-  _handleRoute = Module['_handleRoute'] = createExportWrapper('handleRoute', 2);
+  _handleRoute = Module['_handleRoute'] = createExportWrapper('handleRoute', 1);
   _js_setTitle = Module['_js_setTitle'] = createExportWrapper('js_setTitle', 1);
   _js_insertCSS = Module['_js_insertCSS'] = createExportWrapper('js_insertCSS', 2);
   _js_removeInlineCSS = Module['_js_removeInlineCSS'] = createExportWrapper('js_removeInlineCSS', 1);

@@ -139,10 +139,11 @@ page("Helios ~ Your Full Stack FrmeWork", style={
                         })
                     }
                     text("Index.ink", style={
-                        "color": "#888;"
+                        "color": "#888;",
+                        "letter-spacing": "5px;"
                     })
                 }
-                view("hr", style={
+                view("hr" style={
                     "height": "1px;",
                     "background-color": "#333;",
                     "margin": "10px 0;"
@@ -151,4 +152,6 @@ page("Helios ~ Your Full Stack FrmeWork", style={
     }
 
 }
+
+
         

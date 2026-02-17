@@ -3,6 +3,7 @@
 #include "parseconfig.hpp"
 #include <algorithm>
 #include "parser.hpp"
+#include "utils.hpp"
 #include <fstream>
 #include <filesystem>
 #include <string> 
@@ -51,7 +52,7 @@ std::string WebEngine::pyxtocpp_type(enum NODE_TYPE type, AST_NODE* node) {
     return "//error";
 }
 
-bool WebEngine::gen(AST_NODE *root) {
+std::unordered_map<string, PageIRInfo> WebEngine::gen(AST_NODE *root) {
     filebuffer << "#include <iostream>\n";
     filebuffer << "#include \"vdom.hpp\"\n";
     filebuffer << "#include <format>\n";
@@ -80,7 +81,14 @@ bool WebEngine::gen(AST_NODE *root) {
     filebuffer << "\tEM_ASM({\n\t\tModule._handleRoute(allocateUTF8(window.location.pathname));\n\t\twindow.addEventListener(\"popstate\", () => {\n\t\tModule._handleRoute(allocateUTF8(window.location.pathname));\n\t\t});\n\t});return 0;\n}\n";
 
 
-    return makefile("web/generated.cpp", filebuffer.str());
+    bool makecpp = makefile("web/generated.cpp", filebuffer.str());
+
+    if(!makecpp) {
+        throw std::runtime_error("WebEngineError"); 
+    }
+
+    return WebEngine::IRroutes;
+    
 }
 
 
@@ -139,6 +147,7 @@ std::string WebEngine::exprForNode(AST_NODE *p) {
 std::string WebEngine::MakePage(AST_NODE *p, std::string var, bool firstpage) {
             statevars.clear();
             std::string varid = var;
+            std::string pageRoute;
             std::stringstream ss;
             filebuffer << "\nauto "+varid+ " = make_shared<VPage>();\n";
             ss << "\t"+varid+"->builder = [&";
@@ -172,14 +181,14 @@ std::string WebEngine::MakePage(AST_NODE *p, std::string var, bool firstpage) {
                     }
                     if (param && param->TYPE == NODE_VARIABLE && param->value && *(param->value) == "route") {
     
-                        routeParam = param; // styleParam->CHILD -> NODE_DICT
+                        routeParam = param; 
                     }
                     if (param && param->TYPE == NODE_VARIABLE && param->value && *(param->value) == "cls") {
                     
-                        clsparam = param; // styleParam->CHILD -> NODE_DICT
+                        clsparam = param; 
                     }
                     if (param && param->TYPE == NODE_VARIABLE && param->value && *(param->value) == "id") {
-                        idparam = param; // styleParam->CHILD -> NODE_DICT
+                        idparam = param; // 
                     }
                 }
             }
@@ -187,8 +196,11 @@ std::string WebEngine::MakePage(AST_NODE *p, std::string var, bool firstpage) {
             if (routeParam) {
                 // Router::add("/", page_1);
                 mainbuffer << "\n\tRouter::add(\""+*(routeParam->CHILD->value) + "\","+ varid +");";
+                // WebEngine::IRroutes[*(routeParam->CHILD->value)] = {}
+                pageRoute = *(routeParam->CHILD->value);
             } else {
                 mainbuffer << "\n\tRouter::add(\"/\","+ varid +");";
+                pageRoute = "/";
             }
             if (titleArg) {
                 
@@ -243,19 +255,25 @@ std::string WebEngine::MakePage(AST_NODE *p, std::string var, bool firstpage) {
                 WebLinks web = parseHeliosWebConfig("web/helios.web.config");
 
                 for (const auto &s : web.scripts) {
-                    ss << "\t\tpage.addScript(\"" << s << "\");\n";
-                }
-                for (const auto &c : web.css) {
-                    ss << "\t\tpage.addStylesheet(\"" << c << "\");\n";
+                    // Only include default scripts or those matching the current page route
+                    if (s.path.empty() || s.path == pageRoute) {
+                        ss << "\t\tpage.addScript(\"" << s.file << "\");\n";
+                    }
                 }
 
+                for (const auto &c : web.css) {
+                    // Only include default CSS or those matching the current page route
+                    if (c.path.empty() || c.path == pageRoute) {
+                        ss << "\t\tpage.addStylesheet(\"" << c.file << "\");\n";
+                    }
+                }
+
+                // Favicon is global
                 if (!web.favicon.empty()) {
                     ss << "\t\tpage.setFavicon(\"" << web.favicon << "\");\n";
                 } else {
                     ss << "\t\tpage.setFavicon(\"logo.png\");\n";
-                }
-
-                
+                }                
             } catch (const std::exception& e) {
                 std::cerr << e.what() << "\n";
                 throw std::runtime_error("WebEngine Error");
@@ -265,6 +283,8 @@ std::string WebEngine::MakePage(AST_NODE *p, std::string var, bool firstpage) {
                 ss << "\n\t\t" << HandleAst(child, "page", true);
             }
             ss << "\n\t\t};";
+
+            WebEngine::IRroutes[pageRoute] = {false, p, false};
             
             pagecount++;
             return ss.str();

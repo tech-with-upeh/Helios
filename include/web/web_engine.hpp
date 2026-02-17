@@ -8,6 +8,7 @@
 #include <unordered_map>
 #include <algorithm>
 #include "parser.hpp" 
+#include "utils.hpp"
 
 using namespace std;
 
@@ -16,6 +17,7 @@ class WebEngine {
         // A runtime environment for values known at generation-time (optional).
         // You can populate this map before calling gen() if you want generator-time resolution.
         unordered_map<string,string> env;
+        std::unordered_map<string, PageIRInfo> IRroutes;
         stringstream filebuffer;
         stringstream mainbuffer;
 
@@ -23,7 +25,7 @@ class WebEngine {
 
         string pyxtocpp_type(enum NODE_TYPE type, AST_NODE* node);
 
-        bool gen(AST_NODE *root);
+        std::unordered_map<string, PageIRInfo> gen(AST_NODE *root);
     private:
         int idcount;
         int pagecount;

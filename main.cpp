@@ -7,11 +7,11 @@
 #include <algorithm>
 #include <cstdlib>
 #include <cstring>
-
 #include "core.hpp"
 
 
 using namespace std;
+
 
 namespace fs = std::filesystem;
 
@@ -21,6 +21,7 @@ namespace fs = std::filesystem;
 
 int main(int argc, char ** argv) {
     if (argc < 2) {
+        
         cout << "Usage: helios.exe <command> [target]\n";
         return 0;
     }

@@ -17,6 +17,7 @@
 #include "semantics.hpp"
 #include "web_engine.hpp"
 #include "core.hpp"
+#include "utils.hpp"
 
 
 #include <memory>
@@ -864,16 +865,17 @@ void Core::builder() {
     analyzer.analyze(root);
     //cout << "[i] Finished Semantic Analysing [i]" << endl;
     WebEngine gen;
-    if (!gen.gen(root)) {
-        cerr << "write failed\n";
-        exit(1);
-    }
+    Core::routes = gen.gen(root);
+    //  for (const auto& [url, info] : Core::routes) {
+    //     std::cout << url << std::endl;
+    //  }
+
     //cout << "[Helios] Compiled Projects Successfully! [Helios]\n";
 
     std::string cmd = "em++ web/generated.cpp -o web/main.js " 
         "-sEXPORTED_FUNCTIONS=\"['_main','_invokeVNodeCallback','_js_insertHTML','_js_setTitle','_malloc','_free', '_handleRoute', '_animatefps', '_handleEvent', '_animatefps', '_handleEvent']\" "
         "-sEXPORTED_RUNTIME_METHODS=\"['ccall','cwrap','stringToUTF8','lengthBytesUTF8']\" "
-        "-sALLOW_MEMORY_GROWTH=1 -sASSERTIONS=1 -w -sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE='$allocateUTF8'";
+        "-sALLOW_MEMORY_GROWTH=1 -sASSERTIONS=1 -w -sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE='$allocateUTF8' > /dev/null 2>&1";
     system(cmd.c_str());
 }
 
@@ -889,12 +891,23 @@ void Core::devTarget(const std::vector<std::string>& targets, const std::string&
                 cerr << "Unknown Flag: " << flag << endl;
                 exit(1);
             }
-            cout << "[Helios] Building for development... \n";
+            std::cout << "\n☀ Helios v0.1.0\n\n";
+
+            long total_time = 0;
+
+            // ---------------- BUILD STAGE ----------------
             try {
-                builder();
+                total_time += RunStage("Compiling project...", [&]() {
+                    builder();
+                });
             } catch (std::exception& e) {
-                std::cerr << "Build failed: " << e.what() << "\n";
+                std::cerr << "\nBuild failed: " << e.what() << "\n";
+                exit(1);
             }
+
+            std::cout << "\n";
+
+            // ---------------- SERVER SETUP ----------------
             try {
                 std::mutex build_mutex;
 
@@ -902,22 +915,29 @@ void Core::devTarget(const std::vector<std::string>& targets, const std::string&
                 uWS::Loop* loop = nullptr;
 
                 /* ---------- HTTP ---------- */
-                app.get("/*", [](uWS::HttpResponse<false>* res,
-                      uWS::HttpRequest* req) {
+                app.get("/*", [&](uWS::HttpResponse<false>* res,
+                                uWS::HttpRequest* req) {
+
+                    loop = uWS::Loop::get();
+
                     std::string_view targetview = req->getUrl();
                     std::string target(targetview);
-                    if (target.empty() || target == "/") target = "/index.html";
+                    if (target.empty() || target == "/")
+                        target = "/index.html";
 
                     std::string full_path;
+
                     if (target.ends_with(".png") || target.ends_with(".jpg") ||
                         target.ends_with(".jpeg") || target.ends_with(".svg") ||
-                        target.ends_with(".ico") || target.ends_with(".gif") || target.starts_with("/static/")) {
+                        target.ends_with(".ico") || target.ends_with(".gif") ||
+                        target.starts_with("/static/")) {
                         full_path = PUBLIC_ROOT + target;
                     } else {
                         full_path = WEB_ROOT + target;
                     }
 
                     std::string body;
+
                     if (!read_file(full_path, body)) {
                         full_path = WEB_ROOT + "/index.html";
                         if (!read_file(full_path, body)) {
@@ -926,7 +946,8 @@ void Core::devTarget(const std::vector<std::string>& targets, const std::string&
                         }
                     }
 
-                    res->writeHeader("Content-Type", mime_type(full_path))->end(body);
+                    res->writeHeader("Content-Type", mime_type(full_path))
+                    ->end(body);
                 });
 
                 /* ---------- WEBSOCKET ---------- */
@@ -935,54 +956,72 @@ void Core::devTarget(const std::vector<std::string>& targets, const std::string&
                         ws->subscribe("reload");
                     },
                     .message = [](auto* ws, std::string_view msg, uWS::OpCode) {
-                        if (msg == "ping") ws->send("pong", uWS::OpCode::TEXT);
+                        if (msg == "ping")
+                            ws->send("pong", uWS::OpCode::TEXT);
+
                         std::cout << "[Helios] : " << msg << "\n";
                     }
                 });
 
-                /* ---------- LISTEN ---------- */
-                app.listen(8000, [&](auto* token) {
-                    if (!token) return;
+                // ---------------- LISTEN STAGE ----------------
+                total_time += RunStage("Starting HTTP server...", [&]() {
 
-                    std::cout << "Helios dev server running on :8000\n";
+                    app.listen(8000, [&](auto* token) {
+                        if (!token)
+                            throw std::runtime_error("Failed to bind port 8000");
 
-                    loop = uWS::Loop::get();
+                        loop = uWS::Loop::get();
 
-                    static FileWatcher watcher(
-                        "./", ".ink",
-                        [&]{
-                            std::cout << "Hot Reloading -->Wait for emcc to compile!- sorry! \n";
+                        static FileWatcher watcher(
+                            "./", {".js", ".css", ".ink"},
+                            [&](const std::string& ext) {
 
-                            // Only one builder at a time
-                            std::lock_guard<std::mutex> lock(build_mutex);
+                                std::lock_guard<std::mutex> lock(build_mutex);
 
-                            // simulate heavy work
-                            std::this_thread::sleep_for(std::chrono::milliseconds(300));
+                                bool buildErr = false;
 
+                                std::string errStr;
 
-                            try {
-                                builder();
-                            } catch (std::exception& e) {
-                                std::cerr << "Rebuild failed: " << e.what() << "\n";
+                                if (ext == ".ink") {
+                                    RunHotReloadStage(buildErr, errStr, [&]() {
+                                        builder();
+                                    });
+                                }
+
+                                loop->defer([&app, buildErr, ext, errStr]{
+                                    if (buildErr) {
+                                        app.publish("reload", "Error", uWS::OpCode::TEXT);
+                                        app.publish("reload", errStr, uWS::OpCode::TEXT);
+                                         std::cout << termcolor::red     << "✔ Sent error to clients\n\n"   << termcolor::reset << std::endl;
+                                    } else {
+                                        app.publish("reload", "r", uWS::OpCode::TEXT);
+                                        if(ext != ".ink") {
+                                            std::cout << "✔ Sent reload clients\n\n";
+                                        }
+                                    }
+                                });
                             }
+                        );
 
-                            std::cout << "Rebuild done!, Reloading clients...\n";
-                            // broadcast reload safely in uWS thread
-                            loop->defer([&app]{
-                                app.publish("reload", "r", uWS::OpCode::TEXT);
-
-                            });
-                        }
-                    );
-
-                    watcher.start();
+                        watcher.start();
+                    });
                 });
 
+                // ---------------- SUMMARY ----------------
+                std::cout << "\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n";
+                std::cout << "  ➜  Local:   http://localhost:8000\n";
+                std::cout << "  ➜  Mode:    Development\n";
+                std::cout << "  ➜  Watch:   Enabled\n\n";
+                std::cout << "✨ Ready in " << total_time << "ms\n\n";
+
+                // ---------------- RUN (BLOCKING) ----------------
                 app.run();
+
             } catch (std::exception& e) {
-                std::cerr << "We Didnt Plan for this to happen\nServer failed: " << e.what() << "\n";
+                std::cerr << "\nServer failed: " << e.what() << "\n";
                 exit(1);
             }
+
 
 
             //string cmd = "cd " + root + "/web && emcc main.cpp -o main.js -sEXPORTED_FUNCTIONS='[\"_main\"]' -sEXPORTED_RUNTIME_METHODS=[ccall,cwrap] -sALLOW_MEMORY_GROWTH";

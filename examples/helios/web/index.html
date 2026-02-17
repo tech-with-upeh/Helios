@@ -17,9 +17,33 @@
                   this.ws.onmessage = (e) => {
                     if (e.data === "r") {
                         location.reload();
-                    };
-                    if (e.data === "e") {
-                        console.log("e....");
+                    } else if (e.data === "Error") {
+                        // next message will be the actual error
+                        this.waitingForError = true;
+                        console.log(e.data);
+                    } else if (this.waitingForError) {
+                        // actual error message received
+                        this.waitingForError = false;
+
+                        if (Module && Module._js_setTitle) {
+                            // allocate string in WASM memory
+                            const length = Module.lengthBytesUTF8(e.data) + 1;
+                            const buffer = Module._malloc(length);
+                            Module.stringToUTF8(e.data, buffer, length);
+
+                            // call the exposed C++ function
+                            //Module._js_setTitle(buffer);
+                            Module._handleRoute(buffer, true);
+                            console.log(e.data);
+
+                            // free memory
+                            Module._free(buffer);
+                        } else {
+                            console.warn("Module._handleError not found!");
+                        }
+                    } else {
+                        // normal message
+                        console.log("[WS]", e.data);
                     }
                     }
                 },

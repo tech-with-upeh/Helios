@@ -1,72 +1,46 @@
+
+#include "json.hpp"
 #include "parseconfig.hpp"
 
 #include <fstream>
 #include <stdexcept>
 
-static inline std::string trim(const std::string& s) {
-    const char* ws = " \t\n\r";
-    auto start = s.find_first_not_of(ws);
-    auto end = s.find_last_not_of(ws);
-    return (start == std::string::npos) ? "" : s.substr(start, end - start + 1);
-}
+using json = nlohmann::json;
 
 WebLinks parseHeliosWebConfig(const std::string& path) {
     std::ifstream file(path);
     if (!file)
         throw std::runtime_error("Failed to open Web config file, run command from project Root");
 
+    json j;
+    file >> j;
+
     WebLinks links;
 
-    std::string line;
-    bool inWeb = false;
-    std::string currentKey;
-
-    while (std::getline(file, line)) {
-        line = trim(line);
-        if (line.empty()) continue;
-
-        if (line == "[web]") {
-            inWeb = true;
-            continue;
-        }
-
-        if (line == "[end]") {
-            break;
-        }
-
-        if (!inWeb) continue;
-
-        // Detect keys
-        if (line == "script:") {
-            currentKey = "script";
-            continue;
-        }
-
-        if (line == "css:") {
-            currentKey = "css";
-            continue;
-        }
-
-        if (line == "favicon:") {
-            currentKey = "favicon";
-            continue;
-        }
-
-        // URL line
-        if (line.starts_with("http")) {
-            if (currentKey == "script")
-                links.scripts.push_back(line);
-            else if (currentKey == "css")
-                links.css.push_back(line);
-        } else if (currentKey == "favicon") {
-            links.favicon = line;
-        } else {
-            if (currentKey == "script")
-                links.scripts.push_back(line);
-            else if (currentKey == "css")
-                links.css.push_back(line);
+    // --- Scripts ---
+    for (const auto& s : j["web"]["scripts"]) {
+        if (s.is_string()) {
+            links.scripts.push_back({"", s.get<std::string>()}); // default
+        } else if (s.is_object() && s.contains("file")) {
+            std::string file = s["file"].get<std::string>();
+            std::string path = s.value("path", ""); // optional
+            links.scripts.push_back({path, file});
         }
     }
+
+    // --- CSS ---
+    for (const auto& c : j["web"]["css"]) {
+        if (c.is_string()) {
+            links.css.push_back({"", c.get<std::string>()});
+        } else if (c.is_object() && c.contains("file")) {
+            std::string file = c["file"].get<std::string>();
+            std::string path = c.value("path", "");
+            links.css.push_back({path, file});
+        }
+    }
+
+    // --- Favicon ---
+    links.favicon = j["web"].value("favicon", "");
 
     return links;
 }

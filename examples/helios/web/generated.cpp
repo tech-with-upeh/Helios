@@ -65,7 +65,7 @@ int main() {
 		
 	auto navpad = make_shared<appstate::State<std::string>>("navpad","0px");
 		
-	VNode canvas_2("canvas", "", "__ink_243");
+	VNode canvas_2("canvas", "", "__ink_29");
 		canvas_2.type = VNodeType::CANVAS;
 		canvas_2.setAttr("id", "bg");
 		canvas_2.height = h;
@@ -73,13 +73,13 @@ int main() {
 
 	page.addChild(canvas_2);
 		
-	VNode img_3("img", "", "__ink_244");
+	VNode img_3("img", "", "__ink_30");
 	img_3.setAttr("src", "box-bg.jpg");
 	img_3.setAttr("class",  "bgimg");
 
 	page.addChild(img_3);
 		
-	VNode view_4("div", "", "__ink_245");
+	VNode view_4("div", "", "__ink_31");
 		view_4.setAttr("id", "mydiv");
 	view_4.setAttr("class",  "mydiv");
 	view_4.onClick([num]() {
@@ -87,29 +87,29 @@ int main() {
 		cout << num->get() << endl;
 		updateUI();	});
 
-	VNode view_5("div", "", "__ink_246");
+	VNode view_5("div", "", "__ink_32");
 		view_5.setAttr("id", "nav-start");
 	view_5.setAttr("class",  "navstart");
 
-	VNode img_6("img", "", "__ink_247");
+	VNode img_6("img", "", "__ink_33");
 	img_6.setAttr("src", "logo-wh.png");
 	img_6.setAttr("class",  "brandlogo");
 
 	view_5.addChild(img_6);
-		VNode text_8("p","Helios", "__ink_248");
+		VNode text_8("p","Helios", "__ink_34");
 	text_8.setAttr("class",  "brandname");
 
 	view_5.addChild(text_8);
 	view_4.addChild(view_5);
-	VNode view_11("div", "", "__ink_249");
+	VNode view_11("div", "", "__ink_35");
 		view_11.setAttr("id", "nav-end");
 	view_11.setAttr("class",  "navend");
 
-		VNode text_12("p",to_string(num->get()), "__ink_250");
+		VNode text_12("p",to_string(num->get()), "__ink_36");
 	text_12.setAttr("class",  "mydivtext");
 
 	view_11.addChild(text_12);
-	VNode img_14("img", "", "__ink_251");
+	VNode img_14("img", "", "__ink_37");
 	img_14.setAttr("src", "nav.png");
 	img_14.setAttr("class",  "navicon");
 	img_14.onClick([navh, navpad]() {
@@ -123,90 +123,90 @@ int main() {
 		updateUI();	});
 
 	view_11.addChild(img_14);
-	VNode view_16("div", "", "__ink_252");
+	VNode view_16("div", "", "__ink_38");
 		view_16.setAttr("id", "nav-menu");
 	view_16.setAttr("class",  "navmenu");
 	view_16.setAttr("style", "padding:"+navpad->get()+";"+"height:"+navh->get()+";"+"");
 
-		VNode text_17("p",navh->get(), "__ink_253");
+		VNode text_17("p",navh->get(), "__ink_39");
 
 	view_16.addChild(text_17);
-		VNode text_19("p","Docs", "__ink_254");
+		VNode text_19("p","Docs", "__ink_40");
 
 	view_16.addChild(text_19);
-		VNode text_21("p","GitHub", "__ink_255");
+		VNode text_21("p","GitHub", "__ink_41");
 
 	view_16.addChild(text_21);
 	view_11.addChild(view_16);
 	view_4.addChild(view_11);
 	page.addChild(view_4);
 		
-	VNode view_25("div", "", "__ink_256");
+	VNode view_25("div", "", "__ink_42");
 		view_25.setAttr("id", "hero");
 	view_25.setAttr("class",  "hero");
 
-	VNode view_26("div", "", "__ink_257");
+	VNode view_26("div", "", "__ink_43");
 		view_26.setAttr("id", "hero-start");
 	view_26.setAttr("class",  "herostart");
 
-		VNode text_27("p","Build Once, Render Everywhere", "__ink_258");
+		VNode text_27("p","Build Once, Render Everywhere", "__ink_44");
 	text_27.setAttr("class",  "herotitle");
 
 	view_26.addChild(text_27);
-		VNode text_29("p","Your Full Stack Framework", "__ink_259");
+		VNode text_29("p","Your Full Stack Framework", "__ink_45");
 	text_29.setAttr("style", "font-size:20px;;color:#888;;");
 
 	view_26.addChild(text_29);
-	VNode view_31("div", "", "__ink_260");
+	VNode view_31("div", "", "__ink_46");
 		view_31.setAttr("id", "herobtn");
 
-		VNode text_32("p","Download Helios", "__ink_261");
+		VNode text_32("p","Download Helios", "__ink_47");
 
 	view_31.addChild(text_32);
 	view_26.addChild(view_31);
-	VNode view_35("div", "", "__ink_262");
+	VNode view_35("div", "", "__ink_48");
 		view_35.setAttr("id", "seedocs");
 
-		VNode text_36("p","see docs", "__ink_263");
+		VNode text_36("p","see docs", "__ink_49");
 
 	view_35.addChild(text_36);
 	view_26.addChild(view_35);
 	view_25.addChild(view_26);
-	VNode view_40("div", "", "__ink_264");
+	VNode view_40("div", "", "__ink_50");
 		view_40.setAttr("id", "hero-terminal");
 	view_40.setAttr("style", "background-color:#222;;padding:20px;;border-radius:5px;;font-family:monospace;;font-size:14px;;");
 
-	VNode view_41("div", "", "__ink_265");
+	VNode view_41("div", "", "__ink_51");
 		view_41.setAttr("id", "terminal-header");
 	view_41.setAttr("style", "display:flex;;align-items:center;;margin-bottom:10px;;");
 
-	VNode view_42("div", "", "__ink_266");
+	VNode view_42("div", "", "__ink_52");
 		view_42.setAttr("id", "terminal-header-start");
 	view_42.setAttr("class",  "terminalheaderstart");
 	view_42.setAttr("style", "display:flex;;align-items:center;;border-radius:50%;;margin-right:5px;;");
 
-	VNode view_43("div", "", "__ink_267");
+	VNode view_43("div", "", "__ink_53");
 		view_43.setAttr("id", "terminal-dot");
 	view_43.setAttr("style", "height:10px;;width:10px;;background-color:#f00;;border-radius:50%;;margin-right:5px;;");
 
 	view_42.addChild(view_43);
-	VNode view_45("div", "", "__ink_268");
+	VNode view_45("div", "", "__ink_54");
 		view_45.setAttr("id", "terminal-dot");
 	view_45.setAttr("style", "height:10px;;width:10px;;background-color:#0f0;;border-radius:50%;;margin-right:5px;;");
 
 	view_42.addChild(view_45);
-	VNode view_47("div", "", "__ink_269");
+	VNode view_47("div", "", "__ink_55");
 		view_47.setAttr("id", "terminal-dot");
 	view_47.setAttr("style", "height:10px;;width:10px;;background-color:#ff0;;border-radius:50%;;margin-right:5px;;");
 
 	view_42.addChild(view_47);
 	view_41.addChild(view_42);
-		VNode text_50("p","Index.ink", "__ink_270");
-	text_50.setAttr("style", "color:#888;;");
+		VNode text_50("p","Index.ink", "__ink_56");
+	text_50.setAttr("style", "color:#888;;letter-spacing:5px;;");
 
 	view_41.addChild(text_50);
 	view_40.addChild(view_41);
-	VNode view_53("div", "", "__ink_271");
+	VNode view_53("div", "", "__ink_57");
 		view_53.setAttr("id", "hr");
 	view_53.setAttr("style", "height:1px;;background-color:#333;;margin:10px 0;;");
 

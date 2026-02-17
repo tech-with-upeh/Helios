@@ -1,7 +1,7 @@
-cmake_minimum_required(VERSION 3.16)
+cmake_minimum_required(VERSION 3.25)
 project(helios LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 
@@ -36,7 +36,18 @@ endif()
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Android")
   find_package(uwebsockets REQUIRED)
+  find_package(indicators REQUIRED)
   target_link_libraries(helios PRIVATE uwebsockets::uwebsockets)
+  target_link_libraries(helios PRIVATE indicators::indicators)
+endif()
+
+# Find and link the required library
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 14.0)
+        target_link_libraries(helios PRIVATE stdc++exp)
+    else()
+        target_link_libraries(helios PRIVATE stdc++_libbacktrace)
+    endif()
 endif()
 
 # Optional: warnings (safe)

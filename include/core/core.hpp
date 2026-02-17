@@ -4,6 +4,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <utils.hpp>
 
 
 
@@ -12,6 +13,8 @@ using namespace std;
 class Core {
     public:
         Core();
+
+        std::unordered_map<string, PageIRInfo> routes;
             // --------------------- Config ---------------------
         string getProjectRoot(const string& root, bool useroot = false);
         

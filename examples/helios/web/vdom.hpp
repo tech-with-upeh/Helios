@@ -117,23 +117,23 @@ namespace appstate {
 
 // -------------------- Callback Registry --------------------
 class CallbackRegistry {
-private:
-    static std::unordered_map<std::string, std::function<void()>> callbacks;
-    static int nextId;
+    private:
+        static std::unordered_map<std::string, std::function<void()>> callbacks;
+        static int nextId;
 
-public:
-    static std::string registerCallback(std::function<void()> callback) {
-        std::string id = "callback_" + std::to_string(nextId++);
-        callbacks[id] = callback;
-        return id;
-    }
-
-    static void invokeCallback(const std::string& id) {
-        auto it = callbacks.find(id);
-        if (it != callbacks.end()) {
-            it->second();
+    public:
+        static std::string registerCallback(std::function<void()> callback) {
+            std::string id = "callback_" + std::to_string(nextId++);
+            callbacks[id] = callback;
+            return id;
         }
-    }
+
+        static void invokeCallback(const std::string& id) {
+            auto it = callbacks.find(id);
+            if (it != callbacks.end()) {
+                it->second();
+            }
+        }
 };
 
 std::unordered_map<std::string, std::function<void()>> CallbackRegistry::callbacks;
@@ -243,11 +243,13 @@ struct VPage {
         return *this;
     }
 
-    void rebuild(std::string msg = "") {
-        if (!builder) return;
+    VPage& rebuild(std::string msg = "") {
+        if (!builder) return *this;
         old_children = children;
         clearChildren();
         builder(*this, msg);
+
+        return *this;
     }
 
     // Render this page
@@ -284,7 +286,7 @@ struct VPage {
 
 class Canvas2D {
     std::string id;
-public:
+    public:
     Canvas2D(std::string canvasId) : id(canvasId) {}
 
     void clear() {
@@ -447,9 +449,64 @@ class Platform {
 
 };
 
+std::string escapeErr(const std::string& input) {
+    std::string out;
+    for (char c : input) {
+        switch (c) {
+            case '\"': out += "\\\""; break;
+            case '\\': out += "\\\\"; break;
+            case '\n': out += "\\n"; break;
+            case '\r': break;
+            default: out += c;
+        }
+    }
+    return out;
+}
+std::shared_ptr<VPage> MakeErrorPage() {
+    auto ErrorPage = std::make_shared<VPage>();
+    ErrorPage->builder = [&](VPage& page, std::string msg) {
+        page.setTitle("Helios Error");
+        page.addStylesheet("https://cdn.lineicons.com/5.1/line/lineicons.css");
+        page.setFavicon("logo.png");
+
+        
+        VNode view_56("div", "", "__ink_29");
+        view_56.setAttr("id", "error-wrapper");
+        view_56.setAttr("style", "height:100%;width:100%;display:flex;justify-content:center;");
+
+        VNode view_57("div", "", "__ink_30");
+        view_57.setAttr("id", "err-main");
+        view_57.setAttr("style", "width:80%;display:flex;flex-direction:column;justify-content:flex-start;align-items:center;padding:20px;background-color:rgb(114, 52, 230);height:80%;align-self:center;border-radius:20px;");
+
+        VNode view_58("div", "", "__ink_31");
+        view_58.setAttr("id", "err-start");
+
+        VNode text_59("p","Error on FIle", "__ink_32");
+
+        view_58.addChild(text_59);
+        view_57.addChild(view_58);
+        VNode view_62("div", "", "__ink_33");
+        view_62.setAttr("id", "err-hr");
+        view_62.setAttr("style", "height:1px;;width:100%;background-color:#333;;margin:10px 0;;");
+
+        view_57.addChild(view_62);
+        VNode view_64("div", "", "__ink_34");
+            view_64.setAttr("id", "err-end");
+        view_64.setAttr("style", "height:100%;width:100%;display:flex;justify-content:center;align-items:center;");
+
+        VNode text_65("p",escapeErr(msg), "__ink_35");
+
+        view_64.addChild(text_65);
+        view_57.addChild(view_64);
+        view_56.addChild(view_57);
+        page.addChild(view_56);
+    };
+    return ErrorPage;
+}
+
 // --------------------Router ------------------------------
 class Router {
-public:
+    public:
     using Handler = std::shared_ptr<VPage>; // store shared_ptr to avoid copies
 
     // Add a route
@@ -458,13 +515,17 @@ public:
     }
 
     // Navigate to a path
-    static void navigate(const std::string& path) {
-        auto it = routes().find(path);
-        if (it != routes().end() && it->second) {
-            currentPath() = path;
-            it->second->render();
-        } else {
-            get404()->render();
+    static void navigate(const std::string& path, bool iserr=false) {
+        if(iserr == true) {
+            renderPage(MakeErrorPage()->rebuild(path));
+        }else {
+            auto it = routes().find(path);
+            if (it != routes().end() && it->second) {
+                currentPath() = path;
+                it->second->render();
+            } else {
+                get404()->render();
+            }
         }
     }
 
@@ -490,7 +551,7 @@ public:
         return currentPath();
     }
 
-private:
+    private:
     // Route map
     static std::unordered_map<std::string, Handler>& routes() {
         static std::unordered_map<std::string, Handler> r;
@@ -544,8 +605,8 @@ extern "C" {
     }
 
     EMSCRIPTEN_KEEPALIVE
-    void handleRoute(const char* route) {
-        Router::navigate(route);
+    void handleRoute(const char* route, bool isErr=false) {
+        Router::navigate(route, isErr);
     }
 
     EMSCRIPTEN_KEEPALIVE
