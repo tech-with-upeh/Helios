@@ -41,15 +41,6 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Android")
   target_link_libraries(helios PRIVATE indicators::indicators)
 endif()
 
-# Find and link the required library
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 14.0)
-        target_link_libraries(helios PRIVATE stdc++exp)
-    else()
-        target_link_libraries(helios PRIVATE stdc++_libbacktrace)
-    endif()
-endif()
-
 # Optional: warnings (safe)
 if (MSVC)   
     target_compile_options(helios PRIVATE /w)  #W4

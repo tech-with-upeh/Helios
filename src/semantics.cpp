@@ -152,6 +152,12 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                 }
                 if(node->TYPE == NODE_VARIABLE) {
                     scope[name] = {rhsType, true};
+                    if(node->CHILD->TYPE == NODE_LIST) {
+                        ListScopes[name] = {TYPE_LIST, node->CHILD->SUB_STATEMENTS.size()};
+                    }
+                    if(node->CHILD->TYPE == NODE_DICT) {
+                        ListScopes[name] = {TYPE_DICT, node->CHILD->SUB_STATEMENTS.size()};
+                    }
                 }
                 if(node->TYPE == NODE_SETSTATE) {
                     statevars[name] = {rhsType, true};
@@ -451,8 +457,13 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
 
         case NODE_ELSE:
         case NODE_FOR:
-            for (auto stmt : node->SUB_STATEMENTS)
+            checkNode(node->CHILD->SUB_STATEMENTS[0]);
+            checkNode(node->CHILD->SUB_STATEMENTS[1]);
+            checkNode(node->CHILD->SUB_STATEMENTS[2]);
+            for (auto stmt : node->SUB_STATEMENTS) {
                 checkNode(stmt);
+            }
+            scope.erase(*(node->CHILD->SUB_STATEMENTS[0]->value));
             return TYPE_UNKNOWN;
 
          case NODE_ADDSTYLE: {
@@ -623,6 +634,49 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                 parserError( nodetostr(node->TYPE) +" only accepts number but got "+ nodetostr(node->CHILD->TYPE), node->CHILD);
             }
             return TYPE_FLOAT;
+        }
+        case NODE_LIST: {
+            if (node->SUB_STATEMENTS.empty()) {
+                return TYPE_LIST;
+            }
+            for (auto &i : node->SUB_STATEMENTS) {
+                checkNode(i, uiexceptonstylsheet, funcdecl,isfrompage);
+            }
+            return TYPE_LIST;
+        } case NODE_ID_ATTR: {
+            std::string id = *(node->value);
+            auto it = scope.find(id);
+            // if(std::find(scope.begin(), scope.end(), id) == scope.end()) {
+            //     parserError("Variable '" + id + "' is not Defined, can't use len attribute.", node);
+            // }
+            if(it == scope.end()) {
+                parserError("Variable '" + id + "' is not Defined, can't use len attribute.", node);
+            }
+            return TYPE_INT;
+        } case NODE_INDEXING: {
+            // var[index]
+            std::string varName = *(node->value);
+            auto it = ListScopes.find(varName);
+            if (it == ListScopes.end()) {
+                parserError("Variable '" + varName + "' is not defined as a list, dict, or string.", node);
+            }
+            int list_size = static_cast<int>(it->second.tsize);
+            if (it->second.type == TYPE_LIST)
+            {
+                VarType indexType = checkNode(node->CHILD, uiexceptonstylsheet, funcdecl,isfrompage);
+                if (indexType != TYPE_INT) {
+                    parserError("List indices must be integers but got "+ nodetostr(node->CHILD->TYPE), node->CHILD);
+                }
+                
+                if (node->CHILD->TYPE == NODE_INT) {
+                    int indexValue = std::stoi(*(node->CHILD->value));
+                    if (indexValue < 0 || indexValue >= list_size) {
+                        parserError("List index out of bounds: " + std::to_string(indexValue) + " for list of size " + std::to_string(list_size), node->CHILD);
+                    }
+                }
+            }
+            
+            return TYPE_ALL; // could be any type depending on the contents of the list/dict/string
         }
         default:
             return TYPE_UNKNOWN;

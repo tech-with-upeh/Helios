@@ -855,28 +855,29 @@ void Core::builder() {
     Parser parser(tokens);
     AST_NODE * root = parser.parse();
 
-    // std::cout << "\n==== AST Visualization ====\n";
-    // printAST(root);
-    // std::cout << "\n==== AST Visualization ENDed ====\n";
+    std::cout << "\n==== AST Visualization ====\n";
+    printAST(root);
+    std::cout << "\n==== AST Visualization ENDed ====\n";
     // cout << "Root Node has " << root->SUB_STATEMENTS.size() << " sub-statements." << endl;
-    // cout << "[i] Finished Parsing [i]" << endl;
+     cout << "[i] Finished Parsing [i]" << endl;
 
     SemanticAnalyzer analyzer;
     analyzer.analyze(root);
-    //cout << "[i] Finished Semantic Analysing [i]" << endl;
+    cout << "[i] Finished Semantic Analysing [i]" << endl;
     WebEngine gen;
     Core::routes = gen.gen(root);
     //  for (const auto& [url, info] : Core::routes) {
     //     std::cout << url << std::endl;
     //  }
 
-    //cout << "[Helios] Compiled Projects Successfully! [Helios]\n";
+    cout << "[Helios] Compiled Projects Successfully! [Helios]\n";
 
     std::string cmd = "em++ web/generated.cpp -o web/main.js " 
-        "-sEXPORTED_FUNCTIONS=\"['_main','_invokeVNodeCallback','_js_insertHTML','_js_setTitle','_malloc','_free', '_handleRoute', '_animatefps', '_handleEvent', '_animatefps', '_handleEvent']\" "
+        "-sEXPORTED_FUNCTIONS=\"['_main','_invokeVNodeCallback','_js_insertHTML','_js_setTitle','_malloc','_free', '_handleRoute', '_animatefps', '_handleEvent', '_js_removescript']\" "
         "-sEXPORTED_RUNTIME_METHODS=\"['ccall','cwrap','stringToUTF8','lengthBytesUTF8']\" "
-        "-sALLOW_MEMORY_GROWTH=1 -sASSERTIONS=1 -w -sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE='$allocateUTF8' > /dev/null 2>&1";
+        "-sALLOW_MEMORY_GROWTH=1 -sASSERTIONS=1 -w -sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE='$allocateUTF8'";
     system(cmd.c_str());
+    //> /dev/null 2>&1
 }
 
 

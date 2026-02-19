@@ -63,6 +63,8 @@ void printAST(AST_NODE* node, int depth = 0, const std::string& relation = "ROOT
         case NODE_MATH_SQRT: std::cout << "MATH_SQRT"; break;
         case NODE_MATH_TAN: std::cout << "MATH_TAN"; break;
         case NODE_PLATFORM_CLS: std::cout << "PLATFORM_CLASS"; break;
+        case NODE_ID_ATTR: std::cout << "ID_ATTR"; break;
+        case NODE_INDEXING: std::cout << "INDEXING"; break;
         default: std::cout << "UNKNOWN"; break;
     }
 

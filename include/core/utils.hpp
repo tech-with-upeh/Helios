@@ -107,7 +107,7 @@ inline long RunHotReloadStage(bool& buildErr, std::string& errStr, std::function
     } catch (const std::exception& e) {
         std::cerr.rdbuf(oldCerr);
 
-        std::cerr << "err: " << oss.str() << std::endl;
+        std::cout << "my err: " << oss.str() << std::endl;
         // Capture all output to errStr
         errStr = oss.str();
         buildErr = true;  

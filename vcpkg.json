@@ -2,6 +2,7 @@
   "dependencies": [
     "fmt",
     "openssl",
-    "uwebsockets"
+    "uwebsockets",
+    "indicators"
   ]
 }

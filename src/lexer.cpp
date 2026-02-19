@@ -95,7 +95,7 @@ Lexer::Lexer(std::string sourceCode)
         "true", "false","print", "page", "app", "view", "text", 
         "img", "canvas" , "input", "state", "go", "stylesheet", 
         "to_int", "to_str", "to_float", "draw", "sin", "sqrt", 
-        "cos", "tan", "pow", "Platform", "addStyle", "removeStyle"
+        "cos", "tan", "pow", "Platform", "addStyle", "removeStyle", "len"
       })
 {
     source = sourceCode;

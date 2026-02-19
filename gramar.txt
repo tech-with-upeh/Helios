@@ -165,7 +165,7 @@ Global stylesheet:
 
 Syntax:
 
-media(width > 600) {
+media("width" > "600px") { 
     selector {
         property: value
     }

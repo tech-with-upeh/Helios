@@ -1,1 +1,26 @@
-cmake .. -DCMAKE_TOOLCHAIN_FILE=build/Release/generators/conan_toolchain.cmake -DCMAKE_BUILD_TYPE=Release
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        * {
+            white-space: pre-wrap;   /* preserves \n and spaces */
+            font-family: monospace; 
+        }
+    </style>
+</head>
+<body>
+    <p id="ptext"></p>
+</body>
+
+<script>
+    var ptext = document.getElementById("ptext");
+    const error = `Unexpected Token: = (expected RIGHT_PARENTHESIS) at line 146, column 33
+  146 |                 view("hr" style=
+                                        ^^^`;
+       ptext.innerText = error;
+    console.log(error);
+</script>
+</html>

@@ -58,6 +58,8 @@ std::string nodetostr(enum NODE_TYPE tYPE) {
         case NODE_MATH_SQRT: return "MATH_SQRT"; break;
         case NODE_MATH_TAN: return "MATH_TAN"; break;
         case NODE_PLATFORM_CLS: return "PLATFORM_CLASS"; break;
+        case NODE_ID_ATTR: return "ID_ATTR"; break;
+        case NODE_INDEXING: return "INDEXING"; break;
         default: return "UNKNOWN"; break;
     }
 }
@@ -185,7 +187,51 @@ Parser::Parser(std::vector<Token *> tokens)
             return parseFunctionCall(buffer);
         }
         if(current->TYPE == TOKEN_DOT) {
+            proceed(TOKEN_DOT);
+            if (current->TYPE == TOKEN_KEYWORD)
+            {
+                if (current->value != "len")
+                {
+                    parserError("Invalid Attr in: " + current->value);
+                }
+                AST_NODE *node = new AST_NODE();
+                node->TYPE = NODE_ID_ATTR;
+                node->value = buffer;
+                node->lineno = current->lineno;
+                node->sourceLine = current->sourceLine;
+                node->extra = current->extra;
+                node->charno = current->charno;
+
+                AST_NODE *attrNode = new AST_NODE();
+                attrNode->TYPE = NODE_VARIABLE;
+                attrNode->value = &current->value;
+                attrNode->lineno = current->lineno;
+                attrNode->sourceLine = current->sourceLine;
+                attrNode->extra = current->extra;
+                attrNode->charno = current->charno;
+
+                node->CHILD = attrNode;
+                proceed(TOKEN_KEYWORD);
+                return node;
+            }
+            
             return parseInstancecall(buffer);
+        }
+
+        if(current->TYPE == TOKEN_LBRACKET) {
+            proceed(TOKEN_LBRACKET);
+            AST_NODE *node = new AST_NODE();
+            node->TYPE = NODE_INDEXING;
+            node->value = buffer;
+            node->lineno = current->lineno;
+            node->sourceLine = current->sourceLine;
+            node->extra = current->extra;
+            node->charno = current->charno;
+
+            AST_NODE *indexNode = parseExpression();
+            proceed(TOKEN_RBRACKET);
+            node->CHILD = indexNode;
+            return node;
         }
 
         // if (current->TYPE == TOKEN_PLUSOP || current->TYPE == TOKEN_MINUSOP || current->TYPE == TOKEN_DIVOP || current->TYPE == TOKEN_MULOP) {
@@ -212,7 +258,6 @@ Parser::Parser(std::vector<Token *> tokens)
         node->sourceLine = current->sourceLine;
         node->extra = current->extra;
         node->charno = current->charno;
-        proceed(TOKEN_DOT);
         node->CHILD = parseExpression();
         return node;
     }
@@ -222,7 +267,6 @@ Parser::Parser(std::vector<Token *> tokens)
         AST_NODE *listNode = new AST_NODE();
         // consume '['
         proceed(TOKEN_LBRACKET);
-
         // empty list case: []
         if (current->TYPE == TOKEN_RBRACKET) {
             proceed(TOKEN_RBRACKET);
@@ -234,13 +278,51 @@ Parser::Parser(std::vector<Token *> tokens)
             return listNode;
         }
 
+        if (current->TYPE == TOKEN_NEWLINE)
+        {
+            proceed(TOKEN_NEWLINE);
+            while (current->TYPE == TOKEN_NEWLINE)
+            {
+                proceed(TOKEN_NEWLINE);
+            }
+            
+        }
         // parse first element
         listNode->SUB_STATEMENTS.push_back(parseExpression());
+        if (current->TYPE == TOKEN_NEWLINE)
+        {
+            proceed(TOKEN_NEWLINE);
+            while (current->TYPE == TOKEN_NEWLINE)
+            {
+                proceed(TOKEN_NEWLINE);
+            }
+            
+        }
+        
 
         // parse remaining elements separated by commas
         while (current->TYPE == TOKEN_COMMA) {
             proceed(TOKEN_COMMA);
+            if (current->TYPE == TOKEN_NEWLINE)
+            {
+                proceed(TOKEN_NEWLINE);
+                while (current->TYPE == TOKEN_NEWLINE)
+                {
+                    proceed(TOKEN_NEWLINE);
+                }
+                
+            }
             listNode->SUB_STATEMENTS.push_back(parseExpression());
+        }
+
+        if (current->TYPE == TOKEN_NEWLINE)
+        {
+            proceed(TOKEN_NEWLINE);
+            while (current->TYPE == TOKEN_NEWLINE)
+            {
+                proceed(TOKEN_NEWLINE);
+            }
+            
         }
 
         // closing bracket
@@ -539,6 +621,53 @@ Parser::Parser(std::vector<Token *> tokens)
             }
             
 
+            if(current->TYPE == TOKEN_DOT) {
+                proceed(TOKEN_DOT);
+                if (current->TYPE == TOKEN_KEYWORD)
+                {
+                    if (current->value != "len")
+                    {
+                        parserError("Invalid Attr in: " + current->value);
+                    }
+                    AST_NODE *node = new AST_NODE();
+                    node->TYPE = NODE_ID_ATTR;
+                    node->value = varName;
+                    node->lineno = current->lineno;
+                    node->sourceLine = current->sourceLine;
+                    node->extra = current->extra;
+                    node->charno = current->charno;
+
+                    AST_NODE *attrNode = new AST_NODE();
+                    attrNode->TYPE = NODE_VARIABLE;
+                    attrNode->value = &current->value;
+                    attrNode->lineno = current->lineno;
+                    attrNode->sourceLine = current->sourceLine;
+                    attrNode->extra = current->extra;
+                    attrNode->charno = current->charno;
+
+                    node->CHILD = attrNode;
+                    proceed(TOKEN_KEYWORD);
+                    return node;
+                }
+                
+                return parseInstancecall(varName);
+            }
+
+            if(current->TYPE == TOKEN_LBRACKET) {
+                proceed(TOKEN_LBRACKET);
+                AST_NODE *node = new AST_NODE();
+                node->TYPE = NODE_INDEXING;
+                node->value = varName;
+                node->lineno = current->lineno;
+                node->sourceLine = current->sourceLine;
+                node->extra = current->extra;
+                node->charno = current->charno;
+
+                AST_NODE *indexNode = parseExpression();
+                proceed(TOKEN_RBRACKET);
+                node->CHILD = indexNode;
+                return node;
+            }
             AST_NODE *node = new AST_NODE();
             node->TYPE = NODE_VARIABLE;
             node->value = varName;
@@ -1551,7 +1680,7 @@ Parser::Parser(std::vector<Token *> tokens)
                         if (current->TYPE == TOKEN_RBRACE)
                             break;
 
-                        if (current->TYPE == TOKEN_ID) {
+                        
                             AST_NODE* selectorNode = new AST_NODE();
                             selectorNode->TYPE = NODE_CLS;
                             selectorNode->value = &current->value;
@@ -1561,13 +1690,20 @@ Parser::Parser(std::vector<Token *> tokens)
                             selectorNode->charno = current->charno;
 
                             std::string innerSelector = current->value;
-                            proceed(TOKEN_ID);
+                            if (current->TYPE == TOKEN_ID)
+                            {
+                                proceed(TOKEN_ID);
+                            }
+                            else if (current->TYPE == TOKEN_STRING)
+                            {
+                                proceed(TOKEN_STRING);
+                            } else {
+                                parserError("Selector must be an identifier or string, got: " + current->value);
+                            }
                             selectorNode->CHILD = parseDict(true);
 
                             mediaNode->SUB_STATEMENTS.push_back(selectorNode);
-                        } else {
-                            parserError("Expected selector identifier inside media query, got: " + current->value);
-                        }
+                        
 
                         while (current->TYPE == TOKEN_NEWLINE)
                             proceed(TOKEN_NEWLINE);
@@ -1584,7 +1720,19 @@ Parser::Parser(std::vector<Token *> tokens)
                     selectorNode->sourceLine = current->sourceLine;
                     selectorNode->extra = current->extra;
                     selectorNode->charno = current->charno;
-                    proceed(TOKEN_ID);
+                    
+                    if (current->TYPE == TOKEN_ID)
+                    {
+                        proceed(TOKEN_ID);
+                    }
+                    else if (current->TYPE == TOKEN_STRING)
+                    {
+                        proceed(TOKEN_STRING);
+                    } else {
+                        parserError("Selector must be an identifier or string, got: " + current->value);
+                    }
+                    
+                    
                     proceed(TOKEN_EQ);
                     selectorNode->CHILD = parseDict(true);
                     styleNode->SUB_STATEMENTS.push_back(selectorNode);
@@ -1668,6 +1816,7 @@ Parser::Parser(std::vector<Token *> tokens)
         proceed(TOKEN_LPAREN);
         proceed(TOKEN_RPAREN);
         if (current->TYPE == TOKEN_DOT) {
+            proceed(TOKEN_DOT);
             std::string* buf = new std::string("platform");
             ctx->CHILD= parseInstancecall(buf);
         }

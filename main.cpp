@@ -1,3 +1,6 @@
+#ifdef _WIN32
+#include <windows.h>
+#endif
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -20,6 +23,7 @@ namespace fs = std::filesystem;
 
 
 int main(int argc, char ** argv) {
+    SetConsoleOutputCP(CP_UTF8);
     if (argc < 2) {
         
         cout << "Usage: helios.exe <command> [target]\n";

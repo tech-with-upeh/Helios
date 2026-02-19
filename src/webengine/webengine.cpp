@@ -44,6 +44,8 @@ std::string WebEngine::pyxtocpp_type(enum NODE_TYPE type, AST_NODE* node) {
             return "int";
         case NODE_TOSTR:
             return "std::string";
+        case NODE_LIST:
+            return "std::list<std::any>";
         default:
             cerr << "Error unknown Type\n";
             break;
@@ -57,6 +59,8 @@ std::unordered_map<string, PageIRInfo> WebEngine::gen(AST_NODE *root) {
     filebuffer << "#include \"vdom.hpp\"\n";
     filebuffer << "#include <format>\n";
     filebuffer << "#include <cmath>\n";
+    filebuffer << "#include <list>\n";
+    filebuffer << "#include <any>\n";
     filebuffer << "using namespace std;\n\n";
 
     filebuffer << R"(void updateUI() {
@@ -128,9 +132,22 @@ std::string WebEngine::exprForNode(AST_NODE *p) {
             return HandleAst(p, "root", true);
         case NODE_BOOL:
         case NODE_BINARY_OP: {
-            std::string lhs = exprForNode(p->SUB_STATEMENTS[0]);
-            std::string rhs = exprForNode(p->SUB_STATEMENTS[1]);
             std::string op = *(p->value);
+            std::string lhs;
+            std::string rhs;
+
+            if(p->SUB_STATEMENTS[0]->TYPE == NODE_ID_ATTR) {
+                lhs = HandleAst(p->SUB_STATEMENTS[0], "root", true, true);
+            } else {
+                lhs = exprForNode(p->SUB_STATEMENTS[0]);
+            }
+            
+            if(p->SUB_STATEMENTS[1]->TYPE == NODE_ID_ATTR) {
+                rhs = HandleAst(p->SUB_STATEMENTS[1], "root", true, true);
+            } else {
+                rhs = exprForNode(p->SUB_STATEMENTS[1]);
+            }
+            
             return "(" + lhs + " " + op + " " + rhs + ")";
         }
         case NODE_UNARY_OP: {
@@ -692,8 +709,17 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
                         stringstream ss;
                         ss << "auto " << *(p->value) << " = " << HandleAst(p->CHILD, parent, funcdecl, false);
                         return ss.str();
-                    }
-                    else {
+                    } else if (dtype == NODE_LIST) {
+                        std::string varName = *(p->value);
+                        std::string expr = exprForNode(p->CHILD);
+                        stringstream ss;
+                        ss << "std::list<std::any> " << varName  << ";";
+                        for (auto &item : p->CHILD->SUB_STATEMENTS) {
+                            ss << "\n\t" << varName << ".push_back(" << exprForNode(item) << ");";
+                        }
+                        return ss.str();
+
+                    }else {
                         // simple assignment: type name = expr;
                         std::string varName = *(p->value);
                         std::string expr = exprForNode(p->CHILD);
@@ -709,7 +735,7 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
             return exprForNode(p);
         }
         case NODE_PRINT: {
-            if (p->CHILD->TYPE == NODE_VARIABLE)
+            if (p->CHILD->TYPE == NODE_VARIABLE || p->CHILD->TYPE == NODE_ID_ATTR)
             {
                 stringstream ss;
                 ss << "cout << " << HandleAst(p->CHILD, parent, true) << " << endl;";
@@ -834,7 +860,14 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
         }
         case NODE_CLS: {
             stringstream ss;
-            ss << "\t." << *(p->value) << "{ \n";
+            std::string clsname = *(p->value);
+            if (clsname[0] != '.' && clsname[0] != '#')
+            {
+                ss << "." << clsname << " {\n";
+            } else {
+                ss << clsname << " {\n";
+            }
+
             if (p->CHILD) {
                 for (auto &kv : p->CHILD->SUB_STATEMENTS) {
                     ss << "\t\t\t" << *(kv->SUB_STATEMENTS[0]->value) << " : ";
@@ -860,10 +893,22 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
             // )";
             stringstream ss;
             ss << "\n\t\t@media only screen and (";
-            if(p->CHILD->TYPE == NODE_STRING) {
-                ss << *(p->CHILD->value);
+            if(p->CHILD->TYPE == NODE_BOOL) {
+                // ss << *(p->CHILD->value);
+                std::string p1 = *(p->CHILD->SUB_STATEMENTS[0]->value);
+                std::string p2 = *(p->CHILD->SUB_STATEMENTS[1]->value);
+                std::string op = *(p->CHILD->value);
+
+                if(op == ">") {
+                    ss << "min-" << p1 << ": " << p2;
+                } else if(op == "<") {
+                    ss << "max-" << p1 << ": " << p2;
+                } else {
+                    ss << "min-" << p1 << ": " << p2;
+                }
             } else {
-                ss <<  HandleAst(p->CHILD, parent);
+                std::cerr << "Invalid media query condition\n";
+                throw std::runtime_error("WebEngine Error");
             }
             ss << ") {"; 
             for (auto &cls : p->SUB_STATEMENTS) {
@@ -1018,13 +1063,11 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
                 {
                     ss << HandleAst(i, parent, funcdecl, fromui);
                 }
-                
-                //ss << HandleAst(p->CHILD->SUB_STATEMENTS[0], parent, funcdecl, fromui) << exprForNode(p->CHILD->SUB_STATEMENTS[1]) <<  exprForNode(p->CHILD->SUB_STATEMENTS[2]) << ") {\n";
             }
             ss << "){";
             for (auto &i : p->SUB_STATEMENTS)
             {
-            ss << HandleAst(i, parent, funcdecl, fromui);
+            ss << "\n\t" << HandleAst(i, parent, funcdecl, fromui);
             }
             
             ss << "}";
@@ -1055,6 +1098,31 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
             }
             return ss.str();
         }
+        case NODE_ID_ATTR: {
+            stringstream ss;
+            std::string idval = *(p->value);
+            std::string cmd = *p->CHILD->value;
+            if (cmd == "len") {
+                ss << idval << ".size()";
+            } else {
+               std::cerr << "Unsupported type attribute command: " << cmd << "\n";
+               throw std::runtime_error("WebEngine Error");
+            }
+            return ss.str();
+        }
+        // case NODE_LIST: {
+        //     stringstream ss;
+        //     ss << pyxtocpp_type(p->TYPE, p) << "list_" << idcount << " = {";
+        //     ss << "{";
+        //     for (size_t i = 0; i < p->SUB_STATEMENTS.size(); ++i) {
+        //         ss << exprForNode(p->SUB_STATEMENTS[i]);
+        //         if (i < p->SUB_STATEMENTS.size() - 1) {
+        //             ss << ",";
+        //         }
+        //     }
+        //     ss << "}";
+        //     return ss.str();
+        // }
             default:
             return "";
     }

@@ -11,7 +11,7 @@
 // -------------------- Forward declarations --------------------
 struct VPage;
 struct VNode;
-void renderPage(VPage& page, bool statechange=false);
+void renderPage(VPage& page, bool statechange=false, bool isInternalPage = false);
 std::string genId();
 void diff(const VNode& oldN, const VNode& newN);
 extern "C" {
@@ -211,6 +211,9 @@ struct VPage {
     std::string favicon;
     std::vector<std::string> scripts;
     std::vector<std::string> stylesheets;
+    std::vector<std::string> old_scripts;
+    std::vector<std::string> old_stylesheets;
+    std::string old_favicon;
 
 
 
@@ -240,12 +243,18 @@ struct VPage {
     VPage& clearChildren() {
         children.clear();
         onMount_list.clear();
+        stylesheet.clear();
+        scripts.clear();
+        stylesheets.clear();
         return *this;
     }
 
     VPage& rebuild(std::string msg = "") {
         if (!builder) return *this;
         old_children = children;
+        old_scripts = scripts;
+        old_stylesheets = stylesheets;
+        old_favicon = favicon;
         clearChildren();
         builder(*this, msg);
 
@@ -449,26 +458,51 @@ class Platform {
 
 };
 
-std::string escapeErr(const std::string& input) {
-    std::string out;
-    for (char c : input) {
-        switch (c) {
-            case '\"': out += "\\\""; break;
-            case '\\': out += "\\\\"; break;
-            case '\n': out += "\\n"; break;
-            case '\r': break;
-            default: out += c;
-        }
-    }
-    return out;
-}
 std::shared_ptr<VPage> MakeErrorPage() {
     auto ErrorPage = std::make_shared<VPage>();
     ErrorPage->builder = [&](VPage& page, std::string msg) {
         page.setTitle("Helios Error");
         page.addStylesheet("https://cdn.lineicons.com/5.1/line/lineicons.css");
         page.setFavicon("logo.png");
+        page.bodyAttrs["style"] = "background-color:black;color:white;padding:0px;margin:0px;";
 
+
+        VNode ambientWrapper("div", "", "__ink_ambientWrapper");
+        ambientWrapper.setAttr("id", "ambient-glow");
+        ambientWrapper.setAttr("style",
+            "position:absolute;top:0;left:0;width:100%;height:100%;"
+            "overflow:hidden;pointer-events:none;z-index:0;"
+        );
+
+        // Top-left deep purple glow
+        VNode glow1("div", "", "__ink_glow1");
+        glow1.setAttr("style",
+            "position:absolute;top:-10%;left:-10%;width:50%;height:50%;"
+            "background-color:rgb(41,8,128);"
+            "border-radius:50%;filter:blur(120px);opacity:0.6;"
+        );
+
+        // Top-right primary accent glow
+        VNode glow2("div", "", "__ink_glow2");
+        glow2.setAttr("style",
+            "position:absolute;top:40%;right:-10%;width:60%;height:60%;"
+            "background-color:rgb(114,52,248);"
+            "border-radius:50%;filter:blur(140px);opacity:0.2;"
+        );
+
+        // Bottom-left highlight glow
+        VNode glow3("div", "", "__ink_glow3");
+        glow3.setAttr("style",
+            "position:absolute;bottom:-10%;left:20%;width:70%;height:40%;"
+            "background-color:rgb(84,21,255);"
+            "border-radius:50%;filter:blur(100px);opacity:0.2;"
+        );
+
+        ambientWrapper.addChild(glow1);
+        ambientWrapper.addChild(glow2);
+        ambientWrapper.addChild(glow3);
+
+        
         
         VNode view_56("div", "", "__ink_29");
         view_56.setAttr("id", "error-wrapper");
@@ -494,11 +528,13 @@ std::shared_ptr<VPage> MakeErrorPage() {
             view_64.setAttr("id", "err-end");
         view_64.setAttr("style", "height:100%;width:100%;display:flex;justify-content:center;align-items:center;");
 
-        VNode text_65("p",escapeErr(msg), "__ink_35");
+        VNode text_65("p", msg, "__ink_35");
+        view_64.setAttr("style", "white-space:pre-wrap;text-align:center;color:#eee;font-family:monospace;");
 
         view_64.addChild(text_65);
         view_57.addChild(view_64);
         view_56.addChild(view_57);
+        page.addChild(ambientWrapper);
         page.addChild(view_56);
     };
     return ErrorPage;
@@ -515,9 +551,9 @@ class Router {
     }
 
     // Navigate to a path
-    static void navigate(const std::string& path, bool iserr=false) {
+    static void navigate(const std::string& path, bool iserr) {
         if(iserr == true) {
-            renderPage(MakeErrorPage()->rebuild(path));
+            renderPage(MakeErrorPage()->rebuild(path), true, true);
         }else {
             auto it = routes().find(path);
             if (it != routes().end() && it->second) {
@@ -655,6 +691,47 @@ extern "C" {
             }
         }, link, isjs);
     }
+
+    EMSCRIPTEN_KEEPALIVE
+    void js_removescript(const char* link, bool isjs = false, bool delAll = false) {
+        EM_ASM({
+            const url = UTF8ToString($0);
+
+            if($2 == 1) {
+                // Remove all matching <script src="...">
+                const scripts = document.querySelectorAll("script[src]");
+                scripts.forEach(s => {
+                    s.remove();
+                });
+
+                // Remove all matching <link href="...">
+                const links = document.querySelectorAll("link[href]");
+                links.forEach(l => {
+                    l.remove();
+                });
+            } else {
+                if ($1 == 1) {
+                    // Remove <script src="...">
+                    const scripts = document.querySelectorAll("script[src]");
+                    scripts.forEach(s => {
+                        if (s.src === url || s.getAttribute("src") === url) {
+                            s.remove();
+                        }
+                    });
+                } else {
+                    // Remove <link href="...">
+                    const links = document.querySelectorAll("link[href]");
+                    links.forEach(l => {
+                        if (l.href === url || l.getAttribute("href") === url) {
+                            l.remove();
+                        }
+                    });
+                }
+            }
+            
+        }, link, isjs, delAll);
+    }
+
 
     void js_favicon(const char* link) {
         EM_ASM({
@@ -902,11 +979,14 @@ inline void diff(const VNode& oldN, const VNode& newN) {
 }
 
 // -------------------- Render Page --------------------
-inline void renderPage(VPage& page, bool statechange) {
+inline void renderPage(VPage& page, bool statechange, bool isInternalPage) {
     // Set as current page for callbacks
     GlobalState::setCurrentPage(&page);
 
     if (statechange) {
+        if(isInternalPage == true) {
+            js_removescript(page.old_favicon.c_str(), false, true);
+        }
         size_t n = std::min(page.old_children.size(), page.children.size());
         for (size_t i = 0; i < n; i++) {
             diff(page.old_children[i], page.children[i]);
@@ -926,6 +1006,7 @@ inline void renderPage(VPage& page, bool statechange) {
                 if (el) el.remove();
             }, page.old_children[i].dom_id.c_str());
         }
+        
 
         return;
     }
@@ -950,6 +1031,7 @@ inline void renderPage(VPage& page, bool statechange) {
     }
     js_setTitle(page.title.c_str());
     for(const auto& [key, value] : page.stylesheet) {
+        
         js_insertCSS(key.c_str(), value.c_str());
     }
 
