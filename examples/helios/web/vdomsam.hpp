@@ -19,100 +19,6 @@ extern "C" {
     void js_removeInlineCSS(const char* key);
 }
 
-struct Patch {
-    enum Type {
-        SET_TEXT,
-        SET_ATTR,
-        REMOVE_ATTR,
-        INSERT_HTML,
-        REMOVE_NODE
-    };
-
-    Type type;
-    std::string id;
-    std::string key;
-    std::string value;
-};
-
-static std::vector<Patch> patches;
-
-inline void queueSetText(const std::string& id,const std::string& text){
-    patches.push_back({Patch::SET_TEXT,id,"",text});
-}
-
-inline void queueSetAttr(const std::string& id,const std::string& k,const std::string& v){
-    patches.push_back({Patch::SET_ATTR,id,k,v});
-}
-
-inline void queueRemoveAttr(const std::string& id,const std::string& k){
-    patches.push_back({Patch::REMOVE_ATTR,id,k,""});
-}
-
-inline void queueRemoveNode(const std::string& id){
-    patches.push_back({Patch::REMOVE_NODE,id,"",""});
-}
-
-inline void queueInsertHTML(const std::string& id,const std::string& html){
-    patches.push_back({Patch::INSERT_HTML,id,"",html});
-}
-
-inline void applyPatches()
-{
-    for(auto& p:patches)
-    {
-        switch(p.type)
-        {
-            case Patch::SET_TEXT:
-                EM_ASM({
-                    const el = Module.domCache[UTF8ToString($0)];
-                    if(el) el.textContent = UTF8ToString($1);
-                },p.id.c_str(),p.value.c_str());
-                break;
-
-            case Patch::SET_ATTR:
-                EM_ASM({
-                    const el = Module.domCache[UTF8ToString($0)];
-                    if(el) el.setAttribute(UTF8ToString($1),UTF8ToString($2));
-                },p.id.c_str(),p.key.c_str(),p.value.c_str());
-                break;
-
-            case Patch::REMOVE_ATTR:
-                EM_ASM({
-                    const el = Module.domCache[UTF8ToString($0)];
-                    if(el) el.removeAttribute(UTF8ToString($1));
-                },p.id.c_str(),p.key.c_str());
-                break;
-
-            case Patch::INSERT_HTML:
-                EM_ASM({
-                    const parent = Module.domCache[UTF8ToString($0)];
-                    if(parent){
-                        parent.insertAdjacentHTML("beforeend",UTF8ToString($1));
-                        parent.querySelectorAll("[data-ink-id]").forEach(el=>{
-                            Module.domCache[el.dataset.inkId]=el;
-
-                            // Attach onclick if data-callback exists
-                            const cbId = el.dataset.callback;
-                            if(cbId) {
-                                el.onclick = () => Module._invokeVNodeCallback(cbId);
-                            }
-                        });
-                    }
-                },p.id.c_str(),p.value.c_str());
-                break;
-
-            case Patch::REMOVE_NODE:
-                EM_ASM({
-                    const el = Module.domCache[UTF8ToString($0)];
-                    if(el) el.remove();
-                },p.id.c_str());
-                break;
-        }
-    }
-
-    patches.clear();
-}
-
 // -------------------- Global Page State --------------------
 namespace GlobalState {
     static VPage* currentPage = nullptr;
@@ -258,9 +164,9 @@ enum class VNodeType {
 };
 
 struct VNode {
-
     VNodeType type = VNodeType::NORMAL;
 
+    // canvas only
     int width = 300;
     int height = 150;
     std::string canvasid = "main-canvas";
@@ -269,53 +175,43 @@ struct VNode {
     std::string dom_id;
     std::string id;
     std::string text;
-
-    std::string key;
-
     std::vector<VNode> children;
-    std::unordered_map<std::string,std::string> attrs;
-
+    std::unordered_map<std::string, std::string> attrs;
     std::function<void()> onclick;
     std::string callback_id;
 
     VNode() = default;
-
-    VNode(std::string t, std::string txt="", std::string_view ink_domid = "")
-        : tag(t), text(txt)
-    {
-        if (ink_domid.empty())
-            dom_id = genId();
-        else
-            dom_id = ink_domid;
-
-        key = dom_id;   // automatic key
+    VNode(std::string t, std::string txt="", std::string_view ink_domid = "") : tag(t), text(txt), dom_id(ink_domid) {
     }
 
-    VNode& setKey(const std::string& k){
-        key=k;
+    // Helper methods for building VNodes
+    VNode& setText(const std::string& newText) {
+        text = newText;
         return *this;
     }
 
-    VNode& setText(const std::string& t){
-        text=t;
+    VNode& setAttr(const std::string& key, const std::string& value) {
+        if(key == "id") {
+            if (type == VNodeType::CANVAS) {
+                 canvasid = value;
+            }
+            id = value;
+        }
+        attrs[key] = value;
         return *this;
     }
 
-    VNode& setAttr(const std::string& k,const std::string& v){
-        attrs[k]=v;
+    VNode& addChild(const VNode& child) {
+        children.push_back(child);
         return *this;
     }
 
-    VNode& addChild(const VNode& c){
-        children.push_back(c);
-        return *this;
-    }
-
-    VNode& onClick(std::function<void()> fn){
-        onclick=fn;
+    VNode& onClick(std::function<void()> handler) {
+        onclick = handler;
         return *this;
     }
 };
+
 // -------------------- VPage --------------------
 struct VPage {
     std::string title;
@@ -764,20 +660,6 @@ extern "C" {
             document.body.style = allocateUTF8(""); 
             document.body.innerHTML = UTF8ToString($0);
         }, html);
-        EM_ASM({
-            document.querySelectorAll("[data-ink-id]").forEach(el => {
-                Module.domCache[el.dataset.inkId] = el;
-            });
-        });
-        EM_ASM({
-            document.querySelectorAll("[data-ink-id]").forEach(el => {
-                Module.domCache[el.dataset.inkId] = el;
-                const cbId = el.dataset.callback;
-                if(cbId) {
-                    el.onclick = () => Module._invokeVNodeCallback(cbId);
-                }
-            });
-        });
     }
 
     EMSCRIPTEN_KEEPALIVE
@@ -988,7 +870,7 @@ extern "C" {
 }
 
 inline std::string genId() {
-    static uint64_t id = 0;
+    static int id = 0;
     return "__ink_" + std::to_string(id++);
 }
 
@@ -1039,111 +921,83 @@ inline void bindOnClick(VNode& node) {
         bindOnClick(child);
 }
 
-inline void diffChildren(const VNode& oldN,const VNode& newN)
-{
-    auto& oldC = oldN.children;
-    auto& newC = newN.children;
+// -------------------- Diff Children --------------------
+inline void diffChildren(const VNode& oldN, const VNode& newN) {
+    size_t oldSize = oldN.children.size();
+    size_t newSize = newN.children.size();
+    size_t minSize = std::min(oldSize, newSize);
 
-    int oldStart = 0;
-    int newStart = 0;
-
-    int oldEnd = oldC.size() - 1;
-    int newEnd = newC.size() - 1;
-
-    while(oldStart <= oldEnd && newStart <= newEnd)
-    {
-        const VNode& oStart = oldC[oldStart];
-        const VNode& oEnd   = oldC[oldEnd];
-        const VNode& nStart = newC[newStart];
-        const VNode& nEnd   = newC[newEnd];
-
-        if(oStart.key == nStart.key)
-        {
-            diff(oStart,nStart);
-            oldStart++; newStart++;
-            continue;
-        }
-
-        if(oEnd.key == nEnd.key)
-        {
-            diff(oEnd,nEnd);
-            oldEnd--; newEnd--;
-            continue;
-        }
-
-        if(oStart.key == nEnd.key)
-        {
-            diff(oStart,nEnd);
-            oldStart++; newEnd--;
-            continue;
-        }
-
-        if(oEnd.key == nStart.key)
-        {
-            diff(oEnd,nStart);
-            oldEnd--; newStart++;
-            continue;
-        }
-
-        break;
+    // 1. Diff existing nodes
+    for (size_t i = 0; i < minSize; i++) {
+        diff(oldN.children[i], newN.children[i]);
     }
 
-    std::unordered_map<std::string,int> keyMap;
+    // 2. Add new nodes
+    for (size_t i = minSize; i < newSize; i++) {
+        const auto& child = newN.children[i];
+        EM_ASM({
+            const parent = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
+            if (parent) parent.insertAdjacentHTML('beforeend', UTF8ToString($1));
+        }, oldN.dom_id.c_str(), renderToHTML(child).c_str());
 
-    for(int i = oldStart; i <= oldEnd; i++)
-        keyMap[oldC[i].key] = i;
-
-    while(newStart <= newEnd)
-    {
-        auto it = keyMap.find(newC[newStart].key);
-
-        if(it != keyMap.end())
-        {
-            diff(oldC[it->second], newC[newStart]);
-            keyMap.erase(it);
-        }
-        else
-        {
-            queueInsertHTML(oldN.dom_id, renderToHTML(newC[newStart]));
-        }
-
-        newStart++;
+        // register callbacks for new nodes
+        bindOnClick(const_cast<VNode&>(child));
     }
 
-    for(auto& k : keyMap)
-    {
-        queueRemoveNode(oldC[k.second].dom_id);
+    // 3. Remove old extra nodes
+    for (size_t i = minSize; i < oldSize; i++) {
+        const auto& child = oldN.children[i];
+        EM_ASM({
+            const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
+            if (el) el.remove();
+        }, child.dom_id.c_str());
     }
 }
 
-inline void diff(const VNode& oldN,const VNode& newN)
-{
-    if(oldN.tag!=newN.tag)
-    {
-        queueInsertHTML(oldN.dom_id,renderToHTML(newN));
-        queueRemoveNode(oldN.dom_id);
+// -------------------- Diff a VNode --------------------
+inline void diff(const VNode& oldN, const VNode& newN) {
+    if (oldN.type == VNodeType::CANVAS || newN.type == VNodeType::CANVAS) {
+        // For canvas, just replace
+        if (oldN.canvasid != newN.canvasid || oldN.width != newN.width || oldN.height != newN.height) {
+            EM_ASM({
+                const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
+                if (el) el.outerHTML = UTF8ToString($1);
+            }, oldN.dom_id.c_str(), renderToHTML(newN).c_str());
+        }
         return;
     }
 
-    if(oldN.text!=newN.text)
-    {
-        queueSetText(oldN.dom_id,newN.text);
+    if (oldN.tag != newN.tag) {
+        EM_ASM({
+            const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
+            if (el) el.outerHTML = UTF8ToString($1);
+        }, oldN.dom_id.c_str(), renderToHTML(newN).c_str());
+
+        return;
     }
 
-    for(auto& [k,v]:newN.attrs)
-    {
-        auto it=oldN.attrs.find(k);
-        if(it==oldN.attrs.end()||it->second!=v)
-            queueSetAttr(oldN.dom_id,k,v);
+    if (oldN.text != newN.text) {
+        js_setText(oldN.dom_id.c_str(), newN.text.c_str());
+         
     }
 
-    for(auto& [k,v]:oldN.attrs)
-    {
-        if(newN.attrs.find(k)==newN.attrs.end())
-            queueRemoveAttr(oldN.dom_id,k);
+    // Attributes
+    for (auto& [k, v] : newN.attrs) {
+        auto it = oldN.attrs.find(k);
+        if (it == oldN.attrs.end() || it->second != v) {
+            js_setAttr(oldN.dom_id.c_str(), k.c_str(), v.c_str());
+        }
     }
 
-    diffChildren(oldN,newN);
+    for (auto& [k, v] : oldN.attrs) {
+     // std::cout << " old: " << k << " old: " << v << std::endl;
+        if (newN.attrs.find(k) == newN.attrs.end()) {
+            js_removeAttr(oldN.dom_id.c_str(), k.c_str());
+        }
+    }
+
+    // Children
+    diffChildren(oldN, newN);
 }
 
 // -------------------- Render Page --------------------
@@ -1152,31 +1006,29 @@ inline void renderPage(VPage& page, bool statechange, bool isInternalPage) {
     GlobalState::setCurrentPage(&page);
 
     if (statechange) {
-
         if(isInternalPage == true) {
             js_removescript(page.old_favicon.c_str(), false, true);
         }
-
-        for(auto& node : page.children) {
-            bindOnClick(node);
-        }
         size_t n = std::min(page.old_children.size(), page.children.size());
-
         for (size_t i = 0; i < n; i++) {
             diff(page.old_children[i], page.children[i]);
         }
 
+        // Add new children
         for (size_t i = n; i < page.children.size(); i++) {
             auto& child = page.children[i];
-            queueInsertHTML("body", renderToHTML(child));
+            js_insertHTML(renderToHTML(child).c_str());
             bindOnClick(child);
         }
 
+        // Remove extra old children
         for (size_t i = n; i < page.old_children.size(); i++) {
-            queueRemoveNode(page.old_children[i].dom_id);
+            EM_ASM({
+                const el = document.querySelector('[data-ink-id="' + UTF8ToString($0) + '"]');
+                if (el) el.remove();
+            }, page.old_children[i].dom_id.c_str());
         }
-
-        applyPatches();   // ✅ REQUIRED
+        
 
         return;
     }
@@ -1236,5 +1088,4 @@ inline void renderPage(VPage& page, bool statechange, bool isInternalPage) {
     for(const auto& k : page.page_callbacks) {
         js_addpageEventlisteners(k.first.c_str());
     }
-    applyPatches();
 }

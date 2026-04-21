@@ -2,7 +2,7 @@
 #include "vdom.hpp"
 #include <format>
 #include <cmath>
-#include <list>
+#include <vector>
 #include <any>
 using namespace std;
 
@@ -13,25 +13,44 @@ void updateUI() {
         }
     }
 auto page_1 = make_shared<VPage>();
+
+auto page_2 = make_shared<VPage>();
 int main() {
+	EM_ASM({
+		Module.domCache = {};
+	});
+	
 	Router::add("/",page_1);
-std::list<std::any> listofpages;
-	listofpages.push_back(string("index.ink"));
-	listofpages.push_back(string("about.ink"));
-	listofpages.push_back(string("contact.ink"));
-	page_1->builder = [&, listofpages](VPage& page, std::string msg) {
-		page.setTitle("Helios ~ Your Full Stack Framework");
+	Router::add("/terminal",page_2);
+	page_1->builder = [&](VPage& page, std::string msg) {
+		page.setTitle("MAINNNN");
 		page.addScript("anim.js");
 		page.addStylesheet("./global.css");
 		page.addStylesheet("https://cdn.lineicons.com/5.1/line/lineicons.css");
 		page.setFavicon("logo.png");
 
-		for (    int p = 0;(p < listofpages.size());p++){
-		cout <<  << endl;}
+		auto hei = Platform().height();
 		
-		VNode text_2("p","Welcome to Helios!", "__ink_0");
+		VNode text_2("p","Welcome to Helios!", "__ink_4");
 
 	page.addChild(text_2);
+		};
+	page_2->builder = [&](VPage& page, std::string msg) {
+		page.setTitle("Helios ~ Your Full Stack Framework");
+		page.addStylesheet("./global.css");
+		page.addStylesheet("https://cdn.lineicons.com/5.1/line/lineicons.css");
+		page.setFavicon("logo.png");
+
+		auto hei = Platform().height();
+		page.addevent("resize", [&]() {
+			cout << hei << endl;
+updateUI();
+		});
+
+		
+		VNode text_3("p","Welcome to terminal page!", "__ink_5");
+
+	page.addChild(text_3);
 		};
 	EM_ASM({
 		Module._handleRoute(allocateUTF8(window.location.pathname));

@@ -1,3 +1,7 @@
+:root {
+    --primary-color: rgb(114, 52, 230);
+    --primary-rgb: rgb(114, 52, 230);
+}
 @font-face {
   font-family: 'BachelorPadJL';
   src: url('static/BachelorPadJLRegular.ttf') format('truetype');
@@ -8,9 +12,17 @@
     padding: 0px;
     box-sizing: border-box;
 }
-body {
-    height: 100vh;
-    width: 100vw;
+html, body {
+    height: 100%;
+    width: 100%;
+}
+
+#root{
+    height: 100%;
+    width: 100%;
+    background-image: linear-gradient(to right, rgba(140, 43, 238, 0.1) 1px, transparent 1px), linear-gradient(to bottom, rgba(140, 43, 238, 0.1) 1px, transparent 1px);
+    background-size: 40px 40px;
+    z-index: 50;
 }
 
 p {
@@ -26,9 +38,34 @@ p {
 }
 .navend {
     display: flex;
+    justify-content: space-between;
+    align-items: center;
+    align-content: center;
+    padding-right: 20px;
+    width: 80%;
+    padding-left: 10%;
+}
+
+#navdesk-med {
+    display: flex;
+    gap: 20px;
     justify-content: center;
     align-items: center;
-    padding-right: 20px;
+}
+
+.searchinput {
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: solid 1px #fff;
+    background-color: transparent;
+    color: #888;
+    outline: none;
+    transition: all 0.3s ease;
+}
+.searchinput:active, .searchinput:focus {
+    padding: 8px 12px;
+    border-color: rgb(114, 52, 230);
+    color: #fff;
 }
 .navicon {
     width: 30px;
@@ -69,6 +106,7 @@ p {
     padding: 0px 30px;
     padding-top: 50px;
     flex-direction: column;
+    padding-bottom: 50px;
 }
 
 canvas {
@@ -81,10 +119,46 @@ canvas {
 }
 
 #hero-terminal {
+    position: relative;
     width: 100%;
-    height: 70%;
+    height: fit-content !important;
+    background: #0d0d0d; /* Ensure this has a solid bg so the glow doesn't bleed through */
+    border-radius: 12px;
+    
+    /* The Fix: Creates a 3D space so we can push the glow behind */
+    transform-style: preserve-3d; 
+    z-index: 1;
+    transition: all 0.3s ease;
 }
 
+#hero-terminal:hover {
+    transform: translateY(10px);
+}
+
+#hero-terminal::before {
+    content: "";
+    position: absolute;
+    /* Adjust these to control how far the "aura" spreads */
+    top: -20px; 
+    left: -20px;
+    right: -20px;
+    bottom: -20px;
+    
+    background: rgba(114, 52, 230, 0.11); /* Low opacity for "not very visible" look */
+    filter: blur(50px); /* High blur for the neon cloud effect */
+    border-radius: 30px;
+    
+    /* The Fix: Push it back behind the parent's plane */
+    transform: translateZ(-1px); 
+    
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    pointer-events: none;
+}
+
+#hero-terminal:hover::before {
+    opacity: 1;
+}
 .herostart {
     height: 70%;
     display: flex;
@@ -95,27 +169,216 @@ canvas {
     align-items: center;
 }
 
+.herotxt {
+    display: flex;
+    gap: 10px;
+    flex-direction: column;
+}
+
 .herotitle {
-    font-size: 40px;
+    font-size: 3em;
     font-weight: bold;
     letter-spacing: 5px;
     color: #fff;
+    text-align: center;
+}
+.herotitlespan {
+    font-size: 3em;
+    font-weight: bold;
+    letter-spacing: 5px;
+    color: rgb(114, 52, 230);
     text-align: center;
 }
 
 #herobtn, #seedocs {
     background-color: white;
     color: black;
-    padding: 10px 20px;
-    border-radius: 5px;
+    border-radius: 8px;
     cursor: pointer;
     user-select: none;
+    transition: all ease-in 0.3s;
+    height: 60px;
+    width: 200px;
+    text-align: center;
+    align-content: center;
+    letter-spacing: 2px;
 }
 
+#navdesk-med {
+    display: flex;
+    gap: 20px;
+}
 
+#navdesk-btn {
+    background-color: white;
+    color: black;
+    border-radius: 8px;
+    cursor: pointer;
+    user-select: none;
+    transition: all ease-in 0.3s;
+    height: 45px;
+    width: 140px;
+    text-align: center;
+    align-content: center;
+    letter-spacing: 1px;
+}
 
+#navdesk-btn:hover {
+    letter-spacing: 2px;
+    transform: scale(1.05);
+}
+
+#navdesk-btn p {
+    font-size: small;
+}
+
+#seedocs {
+    background-color: transparent !important;
+    border: solid 1px rgb(114, 52, 230);
+    color: #888;
+    letter-spacing: 4px;
+}
+
+#herobtn:hover, #seedocs:hover {
+    letter-spacing: 3px;
+    transform: scale(1.1);
+}
+
+#seedocs:hover {
+    color: #fff;
+    background-color: rgb(114, 52, 230) !important;
+}
 
 
 #terminal-header {
     justify-content: space-between;
+}
+
+.codeeditor {
+    font-family: monospace;
+    color: grey;
+    font-weight: 900;
+    white-space: pre;
+    font-size: 1em;
+}
+
+.terminalline {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    padding: 5px 0px;
+}
+
+.terminallineno {
+    color: #333;
+    font-size: 1.5em;
+    
+    border-right-color: 1px solid #ffffff;
+    white-space: pre;
+    font-family: monospace;
+}
+
+.features {
+    width: 100%;
+    margin-top: 50px;
+    margin: 0px;
+    display: flex;
+    justify-content: center;
+    z-index: 10;
+    position: relative;
+    align-items: center;
+    align-content: center;
+    padding: 0px 30px;
+    padding-top: 50px;
+    flex-direction: column;
+    gap: 50px;
+}
+
+.features #feature-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    justify-content: center;
+    align-items: center;
+}
+
+.features #feature-list #feature-grp  {
+    gap: 10px;
+    display: flex;
+    flex-direction: column;
+}
+/* Base state adjustments for smooth transitions */
+.features #feature-list #feature-grp .featureitem {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-size: 0.9em;
+    
+    /* Necessary for the glow effect and smooth movement */
+    padding: 20px;
+    border: 2px solid rgba(var(--primary-rgb), 0.5); /* Assuming a primary color variable */
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    background: #222
+}
+
+/* The Hover Effect */
+.features #feature-list #feature-grp .featureitem:hover {
+    border-color: var(--primary-color);
+    background-color: rgba(114, 54, 230, 0.1);
+    transform: translateY(-3px);
+    box-shadow: inset 0 0 20px rgba(114, 54, 230, 0.6);
+}
+
+#feature-icon {
+    transition: transform 0.3s ease;
+}
+
+.features #feature-list #feature-grp .featureitem:hover #feature-icon {
+    transform: translateX(-20px); /* Syncs the text movement with the item */
+}
+
+/* Target the icon/symbol inside the item (if applicable) */
+.features #feature-list #feature-grp .featureitem:hover .material-symbols-outlined,
+.features #feature-list #feature-grp .featureitem:hover i {
+    transform: scale(1.1);
+    filter: drop-shadow(0 0 8px var(--primary-color));
+    transition: transform 0.3s ease;
+}
+
+/* Background Glow "Blob" (Optional) */
+.features #feature-list #feature-grp .featureitem::before {
+    content: "";
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    width: 60px;
+    height: 60px;
+    background: rgba(var(--primary-rgb), 0.1);
+    border-radius: 50%;
+    filter: blur(25px);
+    transition: background 0.3s ease;
+}
+
+.features #feature-list #feature-grp .featureitem:hover::before {
+    background: rgba(var(--primary-rgb), 0.4);
+}
+
+.features #feature-list #feature-grp .featureitem #feature-icon {
+    font-size: xx-large;
+    color: grey;
+    object-fit: contain;
+    text-shadow: 0 0 10px rgba(114, 52, 230, 0.8), 0 0 20px rgba(114, 52, 230, 0.4);
+}
+
+.features #feature-list #feature-grp .featureitem p {
+    color: #333;
+    font-weight: bold;
+    font-size: 1.2em;
+    letter-spacing: 5px;
 }
