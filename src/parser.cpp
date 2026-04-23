@@ -2068,6 +2068,8 @@ Parser::Parser(std::vector<Token *> tokens)
                 return parseView(NODE_VIEW);
             } else if (current->value == "text") {
                 return parseView(HELIOS_NODE_TEXT);
+            } else if (current->value == "input") {
+                return parseView(NODE_INPUT);
             } else if (current->value == "draw") {
                 return parseCtx();
             } else if(current->value == "Platform") {

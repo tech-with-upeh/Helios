@@ -38,14 +38,16 @@ std::string WebEngine::pyxtocpp_type(enum NODE_TYPE type, AST_NODE* node) {
             return "std::string";
         case NODE_DICT:
             return "unordered_map<std::string,std::string>";
+        case NODE_FLOAT:
+            return "double";
         case NODE_TOFLOAT:
-            return "float";
+            return "double";
         case NODE_TOINT:
             return "int";
         case NODE_TOSTR:
             return "std::string";
         case NODE_LIST:
-            return "std::list<std::any>";
+            return "std::vector<std::any>";
         default:
             cerr << "Error unknown Type\n";
             break;
@@ -59,7 +61,7 @@ std::unordered_map<string, PageIRInfo> WebEngine::gen(AST_NODE *root) {
     filebuffer << "#include \"vdom.hpp\"\n";
     filebuffer << "#include <format>\n";
     filebuffer << "#include <cmath>\n";
-    filebuffer << "#include <list>\n";
+    filebuffer << "#include <vector>\n";
     filebuffer << "#include <any>\n";
     filebuffer << "using namespace std;\n\n";
 
@@ -81,7 +83,7 @@ std::unordered_map<string, PageIRInfo> WebEngine::gen(AST_NODE *root) {
             codebuffer << out << "\n";
         }
     }
-    filebuffer << "int main() {" << mainbuffer.str() << codebuffer.str();
+    filebuffer << "int main() {\n\tEM_ASM({\n\t\tModule.domCache = {};\n\t});\n\t" << mainbuffer.str() << codebuffer.str();
     filebuffer << "\tEM_ASM({\n\t\tModule._handleRoute(allocateUTF8(window.location.pathname));\n\t\twindow.addEventListener(\"popstate\", () => {\n\t\tModule._handleRoute(allocateUTF8(window.location.pathname));\n\t\t});\n\t});return 0;\n}\n";
 
 
@@ -155,6 +157,9 @@ std::string WebEngine::exprForNode(AST_NODE *p) {
             std::string op = *(p->value);
             
             return operand  + op ;
+        }
+        case NODE_PLATFORM_CLS: {
+            return HandleAst(p, "root", true, true);
         }
         default:
             return MakeConversion(p, p->TYPE, false);
@@ -402,6 +407,16 @@ std::string WebEngine::MakeElement(AST_NODE *p, std::string parent, std::string 
                     ss << "\t\t" << varid << ".setAttr(\"id\"," << *(firstparam->value) << ");\n"; 
                 } else {
                     ss << "\t\t" << varid << ".setAttr(\"id\", \"" << exprForNode(firstparam) << "\");\n";
+            }
+        } 
+        if (el == "input")
+        {
+            if (firstparam->TYPE == NODE_STRING) {
+                    ss << "\t\t" << varid << ".setAttr(\"placeholder\", \"" << *(firstparam->value) << "\");\n"; 
+                } else if (firstparam->TYPE == NODE_VARIABLE) {
+                    ss << "\t\t" << varid << ".setAttr(\"placeholder\"," << *(firstparam->value) << ");\n"; 
+                } else {
+                    ss << "\t\t" << varid << ".setAttr(\"placeholder\", \"" << exprForNode(firstparam) << "\");\n";
             }
         }
         
@@ -713,7 +728,7 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
                         std::string varName = *(p->value);
                         std::string expr = exprForNode(p->CHILD);
                         stringstream ss;
-                        ss << "std::list<std::any> " << varName  << ";";
+                        ss << "std::vector<std::any> " << varName  << ";";
                         for (auto &item : p->CHILD->SUB_STATEMENTS) {
                             ss << "\n\t" << varName << ".push_back(" << exprForNode(item) << ");";
                         }
@@ -735,7 +750,7 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
             return exprForNode(p);
         }
         case NODE_PRINT: {
-            if (p->CHILD->TYPE == NODE_VARIABLE || p->CHILD->TYPE == NODE_ID_ATTR)
+            if (p->CHILD->TYPE == NODE_VARIABLE || p->CHILD->TYPE == NODE_INDEXING)
             {
                 stringstream ss;
                 ss << "cout << " << HandleAst(p->CHILD, parent, true) << " << endl;";
@@ -743,7 +758,6 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
             }
             else
             {
-                
                 string expr = exprForNode(p->CHILD);
             return "\tcout << " + expr + " << endl;";
             }
@@ -765,7 +779,7 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
             ss << "\tif";
             ss << exprForNode(p->CHILD);
             ss << "{";
-            for (auto i : p->SUB_STATEMENTS)
+            for (auto &i : p->SUB_STATEMENTS)
             {
                 ss << "\n    ";
                 if (i->TYPE == NODE_ELSE || i->TYPE == NODE_ELSE_IF)
@@ -773,8 +787,7 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
                     haselsif = true;
                     ss << "\n    }"; 
                 }
-                
-                ss << HandleAst(i);
+                ss << HandleAst(i, parent, true);
             }
             if (!haselsif)
             {
@@ -786,7 +799,7 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
             stringstream ss;
             ss << "\n    else {";
             for (auto i : p->SUB_STATEMENTS) {
-                ss << HandleAst(i);
+                ss << HandleAst(i, parent, true);
             }
             ss << "\n    }";
             return ss.str();
@@ -798,7 +811,7 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
             ss << "{";
             for (auto i : p->SUB_STATEMENTS)
             {
-                ss << "\n\t" << HandleAst(i);
+                ss << "\n\t" << HandleAst(i, parent, true);
             }
             
             return ss.str();
@@ -969,7 +982,7 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
                 for (auto &stmt : p->SUB_STATEMENTS) {
                     ss << "\t\t\t" << HandleAst(stmt, parent) << "\n";
                 }
-                ss << "\t\t});\n";
+                ss << "updateUI();\n\t\t});\n";
                 return ss.str();
             }
             
@@ -1108,6 +1121,12 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
                std::cerr << "Unsupported type attribute command: " << cmd << "\n";
                throw std::runtime_error("WebEngine Error");
             }
+            return ss.str();
+        } case NODE_INDEXING: {
+            stringstream ss;
+            std::string varname = *(p->value);
+            std::string indexexpr = exprForNode(p->CHILD);
+            ss << "std::any_cast<std::string>(" << varname << "[" << indexexpr << "])";
             return ss.str();
         }
         // case NODE_LIST: {

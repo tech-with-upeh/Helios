@@ -6,8 +6,12 @@ emcc web/generated.cpp -o web/main.js -sEXPORTED_FUNCTIONS='["_main","_invokeVNo
 
 --------------------------------------------------------------------
 
+lex -> parse -> resolve imports ->  semantics -> wasm
+
+---------------------------------------------------------------------
+
 [cmake]
-needs vcpkg for boost/beast/openssl
+needs vcpkg for uwebsocket
 windows ->
     cmake --preset=default
     cmake --build build

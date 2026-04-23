@@ -444,8 +444,8 @@ std::vector<Token *> Lexer::tokenize()
                 for (int i = 1; i < charnum; ++i)
                     std::cerr << " ";
                 std::cerr << " ^\n\n";
-                std::cout << "Unknown character: " << current << std::endl;
-                std::cout << "at line: " << linenum << " char: " << charnum << std::endl;
+                std::cerr << "Unknown character: " << current << std::endl;
+                std::cerr << "at line: " << linenum << " char: " << charnum << std::endl;
                 throw std::runtime_error("Lexer Error: Unknown character"); 
             }
         }

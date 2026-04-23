@@ -42,8 +42,9 @@ SemanticAnalyzer::SemanticAnalyzer()
         {"scale",       {{ TYPE_INT, TYPE_INT }, false, true, TYPE_UNKNOWN}}
     };
     platform_callables = {
-        {"height",{{}, true, false, TYPE_INT}},
-        {"width",{{}, true, false, TYPE_INT}}
+        {"height",{{}, true, false, TYPE_FLOAT}},
+        {"width",{{}, true, false, TYPE_FLOAT}},
+        {"scrollY",{{}, true, false, TYPE_FLOAT}}
     };
 }
 
@@ -56,6 +57,7 @@ void SemanticAnalyzer::analyze(AST_NODE *root) {
         instances.clear();
 
         instances["platform"] =  {platform_callables, true};
+        instances["draw"] = {draw_callables, true};
 
         // Pass 1: Analyze all statements
         for (auto stmt : root->SUB_STATEMENTS) {
@@ -180,6 +182,9 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                     return scope[name].type;
                 }
 
+                parserError("Variable '" + name + "' used before assignment.", node);
+                return TYPE_UNKNOWN;
+
             }
         }
         case NODE_page: {
@@ -251,12 +256,15 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
             }
             statevars.clear();
             instances.clear();
+            instances["platform"] =  {platform_callables, true};
+            instances["draw"] = {draw_callables, true};
             return TYPE_FUNCTION;
         }
 
         case HELIOS_NODE_TEXT:
         case NODE_CANVAS:
         case NODE_IMAGE:
+        case NODE_INPUT:
         case NODE_VIEW: {
             if (node->CHILD) {
 
@@ -272,7 +280,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                     {
                         AST_NODE* it_node = *it;
                         VarType node2 = checkNode(it_node, true, true);
-                        if (node2 != TYPE_DICT && node2 != TYPE_STRING && node2 != TYPE_FUNCTION && node2 != TYPE_INT)
+                        if (node2 != TYPE_DICT && node2 != TYPE_STRING && node2 != TYPE_FUNCTION && node2 != TYPE_INT && node2 != TYPE_FLOAT && node2 != TYPE_BOOL)
                         {
                             parserError("Unknown Type in Args in View() but got: '" + *(it_node->value) + "<->" + *(it_node->CHILD->value) + "'", it_node->CHILD);
                         }
@@ -354,8 +362,9 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
             }
 
             // Check the function body
-            for (auto stmt : node->SUB_STATEMENTS)
+            for (auto stmt : node->SUB_STATEMENTS) {
                 checkNode(stmt);
+            }
             return TYPE_FUNCTION;
         }
 
@@ -397,6 +406,10 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                 }
                 VarType ty = checkNode(node->CHILD);
 
+                if (node->CHILD->TYPE == NODE_INSTANCE) {
+                    return ty;
+                }
+
                 if(node->TYPE == NODE_TOFLOAT || node->TYPE == NODE_TOINT) {
                     if (ty != TYPE_STRING) {
                         parserError("Type Conversion Must be Str.", node->CHILD);
@@ -424,12 +437,13 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                 if (condType != TYPE_BOOL) {
                     parserError("Condition in if statement must evaluate to a boolean.", node->CHILD);
                 }
-                for (auto stmt : node->CHILD->SUB_STATEMENTS)
+                for (auto ifs : node->CHILD->SUB_STATEMENTS)
                 {
+                    checkNode(ifs);
+                }
+                for (auto stmt : node->SUB_STATEMENTS) {
                     checkNode(stmt);
                 }
-                for (auto stmt : node->SUB_STATEMENTS)
-                    checkNode(stmt);
                 return TYPE_UNKNOWN;
             }
         }
@@ -455,7 +469,13 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
             return TYPE_UNKNOWN;
         }
 
-        case NODE_ELSE:
+        case NODE_ELSE: {
+            for (auto &i : node->SUB_STATEMENTS)
+            {
+                checkNode(i);
+            }
+            return TYPE_UNKNOWN;
+        }
         case NODE_FOR:
             checkNode(node->CHILD->SUB_STATEMENTS[0]);
             checkNode(node->CHILD->SUB_STATEMENTS[1]);
@@ -507,7 +527,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
         case NODE_INSTANCE: {
             auto it = instances.find(*(node->value));
             if (it == instances.end()) {
-                parserError("'"+ *(node->value) +"' is not Callable", node);
+                parserError("'"+ *(node->value) +"'a is not Callable", node);
             }
             if (node->CHILD) {
                 auto& secondinstance = it->second;
@@ -526,7 +546,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                             }
                     } else {
                         if(node->CHILD->SUB_STATEMENTS[0]->TYPE == NODE_FUNCTION_CALL) {
-                            parserError("'" + *(node->CHILD->SUB_STATEMENTS[0]->value) + "' is Not callable!", node->CHILD);
+                            parserError("'" + *(node->CHILD->SUB_STATEMENTS[0]->value) + "'b is Not callable!", node->CHILD);
 
                         }
                     }
@@ -567,7 +587,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
 
                         }
                         if(node->CHILD->TYPE == NODE_FUNCTION_CALL) {
-                            parserError("'" + *(node->CHILD->value) + "' is not Callable", node->CHILD);
+                            parserError("'" + *(node->CHILD->value) + "'c is not Callable", node->CHILD);
                         }
                     }
                 } else {
@@ -576,7 +596,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                     }
                     if (ch->second.isVariadic) {
                         if(node->CHILD->TYPE != NODE_FUNCTION_CALL) {
-                            parserError("'" + *(node->CHILD->value) + "' is not callable!", node->CHILD);
+                            parserError("'" + *(node->CHILD->value) + "'d is not callable!", node->CHILD);
                         }
                     } else {
                         if (secondinstance.issystemdefined) {

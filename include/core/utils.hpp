@@ -21,6 +21,8 @@ struct PageIRInfo  {
     bool useclient;
 };
 
+static std::mutex cout_mutex;
+
 // ---------- Stage Runner ----------
 inline long RunStage(const std::string& message, std::function<void()> task) {
     
@@ -47,6 +49,7 @@ inline long RunStage(const std::string& message, std::function<void()> task) {
 
     std::thread spin_thread([&]() {
         while (!done.load()) {
+            std::lock_guard<std::mutex> lock(cout_mutex);
             spinner.tick();
             std::this_thread::sleep_for(std::chrono::milliseconds(40));
         }

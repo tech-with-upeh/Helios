@@ -18,9 +18,7 @@ using namespace std;
 
 namespace fs = std::filesystem;
 
-
-
-
+static constexpr double version = 0.10;
 
 int main(int argc, char ** argv) {
     SetConsoleOutputCP(CP_UTF8);
@@ -71,7 +69,7 @@ int main(int argc, char ** argv) {
     } else if (cmd == "clean") {
         string projectName = targets[0];
         Core.cleanProject(projectName);
-    } else if (cmd == "help") {
+    } else if (cmd == "help" || cmd == "--help" || cmd == "-h") {
         cout << "Available commands:\n";
         cout << "  create <project_name> - Create a new project\n";
         cout << "  dev <project_name> - Start development server\n";
@@ -80,8 +78,7 @@ int main(int argc, char ** argv) {
         cout << "  clean <project_name> - Clean the project\n";
         cout << "  help - Show this help message\n";
     } else if (cmd == "--version" || cmd == "-v") {
-        cout << "Helios CLI Version 0.1.0\n";
-
+        cout << "Helios CLI Version " << version << "\n";
     } else {
         cout << "Unknown command: " << cmd << "\n";
     }
