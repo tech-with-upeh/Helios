@@ -5,7 +5,6 @@
 #include <vector>
 #include <string>
 #include <cctype>
-#include <regex>
  
 enum NODE_TYPE {
     NODE_ROOT,
@@ -37,6 +36,7 @@ enum NODE_TYPE {
     NODE_MATH_TAN,
     NODE_MATH_POW,
     NODE_STYLE,
+    NODE_IMPORT,
     //ui specifics
     NODE_app,
     NODE_page,
@@ -141,6 +141,7 @@ public:
     AST_NODE *parseAddStyle();
     AST_NODE *parseRemoveStyle();
 
+    AST_NODE *parseImports();
     
     std::vector<std::string> defined_keywords;
     std::vector<std::string> loop_keywords;

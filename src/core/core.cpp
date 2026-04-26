@@ -1432,11 +1432,20 @@ void Core::builder() {
     //     std::cout << url << std::endl;
     //  }
 
-    //TODO: make cross-platform compatible build commands
-    std::string cmd = "cmd /c em++ web/generated.cpp -o web/main.js " 
+    //TODO:
+    //
+    #ifdef _WIN32
+        std::string cmd = "cmd /c em++ web/generated.cpp -o web/main.js " 
         "-sEXPORTED_FUNCTIONS=\"['_main','_invokeVNodeCallback','_js_insertHTML','_js_setTitle','_malloc','_free', '_handleRoute', '_animatefps', '_handleEvent', '_js_removescript']\" "
         "-sEXPORTED_RUNTIME_METHODS=\"['ccall','cwrap','stringToUTF8','lengthBytesUTF8']\" "
-        "-sALLOW_MEMORY_GROWTH=1 -sASSERTIONS=1 -w -sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE='$allocateUTF8' -Q -w -Wfatal-errors  2>&1";
+        "-sALLOW_MEMORY_GROWTH=1 -sASSERTIONS=1 -w -sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE='$allocateUTF8' -Q -w -Wfatal-errors 2>&1";
+    #else
+        std::string cmd = "em++ web/generated.cpp -o web/main.js " 
+        "-sEXPORTED_FUNCTIONS=\"['_main','_invokeVNodeCallback','_js_insertHTML','_js_setTitle','_malloc','_free', '_handleRoute', '_animatefps', '_handleEvent', '_js_removescript']\" "
+        "-sEXPORTED_RUNTIME_METHODS=\"['ccall','cwrap','stringToUTF8','lengthBytesUTF8']\" "
+        "-sALLOW_MEMORY_GROWTH=1 -sASSERTIONS=1 -w -sDEFAULT_LIBRARY_FUNCS_TO_INCLUDE='$allocateUTF8' -Q -w -Wfatal-errors";
+
+    #endif
     // system(cmd.c_str());
 
     FILE* pipe = POPEN(cmd.c_str(), "r");
@@ -1445,6 +1454,7 @@ void Core::builder() {
     char ppenbuffer[128];
     while (fgets(ppenbuffer, sizeof(ppenbuffer), pipe) != nullptr) {
         // DO NOTHING (or log somewhere else)
+        //std::cout << ppenbuffer << "\n";
     }
 
     PCLOSE(pipe);

@@ -3,8 +3,8 @@ project(helios LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+option(BuildFromPkg "Build using the package version" OFF)
 
 add_executable(helios
     main.cpp
@@ -34,11 +34,25 @@ if(WIN32)
         )
 endif()
 
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Android")
-  find_package(uwebsockets REQUIRED)
-  find_package(indicators REQUIRED)
-  target_link_libraries(helios PRIVATE uwebsockets::uwebsockets)
-  target_link_libraries(helios PRIVATE indicators::indicators)
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" OR CMAKE_SYSTEM_NAME STREQUAL "Android")  
+  
+    if(BuildFromPkg)
+        message(STATUS "Logic for: Building from Package")
+        find_package(uwebsockets REQUIRED)
+        find_package(indicators REQUIRED)
+        target_link_libraries(helios PRIVATE uwebsockets::uwebsockets)
+        target_link_libraries(helios PRIVATE indicators::indicators)
+    # Add your package-specific commands here
+    else()
+        find_package(ZLIB REQUIRED)
+        find_package(Threads REQUIRED)
+
+        target_link_libraries(helios PRIVATE 
+            uSockets
+            ZLIB::ZLIB
+            Threads::Threads
+        )
+    endif()
 endif()
 
 # Optional: warnings (safe)

@@ -65,8 +65,8 @@ class Lexer
         Lexer(std::string sourceCode);
         
         std::vector<std::string> keywords = {
-            "if", "else", "while", "for", "return", "class", "import", "pass", "break", "continue", "def","type", "true", "false","print", "page", "app", "view", "text", "img", "canvas" , "input", "state", "go", "stylesheet", "to_int", "to_str", "to_float", "draw", "sin", "sqrt", "cos", "tan", "pow", "Platform"
-        };
+            "if", "else", "while", "for", "return", "class", "import", "pass", "break", "continue", "def","type", "true", "false","print", "page", "app", "view", "text", "img", "canvas" , "input", "state", "go", "stylesheet", "to_int", "to_str", "to_float", "draw", "sin", "sqrt", "cos", "tan", "pow", "Platform", "import", "include", "use"
+    };
         
         char advance();
 

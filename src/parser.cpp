@@ -307,17 +307,7 @@ Parser::Parser(std::vector<Token *> tokens)
             {
                 proceed(TOKEN_NEWLINE);
                 while (current->TYPE == TOKEN_NEWLINE)
-                {
-                    proceed(TOKEN_NEWLINE);
-                }
-                
-            }
-            listNode->SUB_STATEMENTS.push_back(parseExpression());
-        }
-
-        if (current->TYPE == TOKEN_NEWLINE)
-        {
-            proceed(TOKEN_NEWLINE);
+                           proceed(TOKEN_NEWLINE);
             while (current->TYPE == TOKEN_NEWLINE)
             {
                 proceed(TOKEN_NEWLINE);
@@ -1896,6 +1886,19 @@ Parser::Parser(std::vector<Token *> tokens)
 
         return node;
     }
+
+    AST_NODE *Parser::parseImports() {
+        proceed(TOKEN_KEYWORD)
+        AST_NODE *node = new AST_NODE();
+        node->TYPE = NODE_IMPORT;
+        node->value = &current->value;
+        node->lineno = current->lineno;
+        node->sourceLine = current->sourceLine;
+        node->extra = current->extra;
+        node->charno = current->charno;
+        proceed(TOKEN_STRING);
+        return node;
+    }
    
     // ---------- Keyword Dispatcher ----------
     AST_NODE *Parser::parseKEYWORDS() {
@@ -2084,7 +2087,9 @@ Parser::Parser(std::vector<Token *> tokens)
                 return parseAddStyle();
             } else if(current->value == "removeStyle") {
                 return parseRemoveStyle();
-            } else {
+            } else if(current->value == "import" ||current->value == "include" ||current->value == "use") { 
+                return parseImports();
+            }else {
                 parserError("Unknown keyword: " + current->value);
             }
         }

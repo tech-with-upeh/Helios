@@ -151,7 +151,7 @@ page("Helios ~ Your Full Stack FrmeWork", style={
     view("hero", cls="hero") {
         view("hero-start", cls="herostart") {
             view("herotxt", cls="herotxt") {
-               text("Kelz, Render ", cls="herotitle")
+               text("Build Once, Render ", cls="herotitle")
                text("Everywhere", cls="herotitlespan") 
             }
             text("Your Full Stack Framework", style={

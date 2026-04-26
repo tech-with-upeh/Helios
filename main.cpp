@@ -21,7 +21,9 @@ namespace fs = std::filesystem;
 static constexpr double version = 0.10;
 
 int main(int argc, char ** argv) {
-    SetConsoleOutputCP(CP_UTF8);
+    #ifdef _WIN32
+        SetConsoleOutputCP(CP_UTF8);
+    #endif
     if (argc < 2) {
         
         cout << "Usage: helios.exe <command> [target]\n";

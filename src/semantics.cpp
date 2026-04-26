@@ -1,4 +1,5 @@
 #include "semantics.hpp"
+#include "preprocessor.hpp"
 #include <iostream>
 #include <unordered_map>
 #include <string>
@@ -697,6 +698,10 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
             }
             
             return TYPE_ALL; // could be any type depending on the contents of the list/dict/string
+        }
+        case NODE_IMPORT: {
+            std::string 
+            return TYPE_UNKNOWN
         }
         default:
             return TYPE_UNKNOWN;
