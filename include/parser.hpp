@@ -64,7 +64,8 @@ enum NODE_TYPE {
     NODE_INSTANCE,
     NODE_PLATFORM_CLS,
     NODE_ID_ATTR,
-    NODE_INDEXING
+    NODE_INDEXING,
+    NODE_SCOPE_INSTANCE
 };
 
 struct AST_NODE {
@@ -145,6 +146,11 @@ public:
     
     std::vector<std::string> defined_keywords;
     std::vector<std::string> loop_keywords;
+    /*
+        built in instances so parser can differentiant it from scoped vars(import.var)
+    */
+    std::vector<std::string> frinstances = {"platform", "draw"}; 
+    
     // ---------- Keyword Dispatcher ----------
     AST_NODE *parseKEYWORDS();
     AST_NODE * parseState();

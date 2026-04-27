@@ -46,13 +46,33 @@ struct InstanceInfo {
     bool issystemdefined;
 };
 
+struct VarScopeInfo {
+    std::string name;
+    std::string scope;
+
+     bool operator==(const VarScopeInfo& other) const {
+        return name == other.name && scope == other.scope;
+    }
+};
+
+namespace std {
+    template <>
+    struct hash<VarScopeInfo> {
+        size_t operator()(const VarScopeInfo& k) const {
+            // We combine the hash of the string and the hash of the int
+            return hash<string>()(k.name) ^ (hash<string>()(k.scope) << 1);
+        }
+    };
+}
+
+
 class SemanticAnalyzer {
 public:
     SemanticAnalyzer();
     void analyze(AST_NODE *root);
 
 private:
-    std::unordered_map<std::string, VarInfo> scope;
+    std::unordered_map<VarScopeInfo, VarInfo> scope;
     std::unordered_map<std::string, VarInfo> statevars;
     std::unordered_map<std::string, VarInfo> declaredFunctions;
     std::vector<std::string> calledFunctions;
@@ -67,6 +87,6 @@ private:
     std::unordered_map<std::string, ListorDictInfo> ListScopes;
 
     void parserError(const std::string &message, AST_NODE* current);
-    VarType checkNode(AST_NODE *node, bool uiexceptonstylsheet = false, bool funcdecl = false, bool isfrompage = false);
+    VarType checkNode(AST_NODE *node, bool uiexceptonstylsheet = false, bool funcdecl = false, bool isfrompage = false, std::string varscope = "root");
     void semanticError(const std::string &msg);
 };

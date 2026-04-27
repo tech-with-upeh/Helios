@@ -19,6 +19,7 @@
 #include "lexer.hpp"
 #include "parser.hpp"
 #include "astvisualise.hpp"
+#include "preprocessor.hpp"
 #include "semantics.hpp"
 #include "web_engine.hpp"
 #include "core.hpp"
@@ -1417,11 +1418,16 @@ void Core::builder() {
     Parser parser(tokens);
     AST_NODE * root = parser.parse();
 
-    // std::cout << "\n==== AST Visualization ====\n";
-    // printAST(root);
-    // std::cout << "\n==== AST Visualization ENDed ====\n";
-    // cout << "Root Node has " << root->SUB_STATEMENTS.size() << " sub-statements." << endl;
-    //  cout << "[i] Finished Parsing [i]" << endl;
+
+    PreProcess preprocessor;
+    preprocessor.process(root);
+
+
+    std::cout << "\n==== AST Visualization ====\n";
+    printAST(root);
+    std::cout << "\n==== AST Visualization ENDed ====\n";
+    cout << "Root Node has " << root->SUB_STATEMENTS.size() << " sub-statements." << endl;
+     cout << "[i] Finished Parsing [i]" << endl;
 
     SemanticAnalyzer analyzer;
     analyzer.analyze(root);
@@ -1454,7 +1460,7 @@ void Core::builder() {
     char ppenbuffer[128];
     while (fgets(ppenbuffer, sizeof(ppenbuffer), pipe) != nullptr) {
         // DO NOTHING (or log somewhere else)
-        //std::cout << ppenbuffer << "\n";
+        std::cout << ppenbuffer << "\n";
     }
 
     PCLOSE(pipe);

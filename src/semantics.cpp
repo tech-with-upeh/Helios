@@ -19,8 +19,7 @@
     }
 }
 
-SemanticAnalyzer::SemanticAnalyzer() 
-{
+SemanticAnalyzer::SemanticAnalyzer() {
      draw_callables = {
         {"clear", {{}, false, true, TYPE_UNKNOWN} },
         {"setFill",     {{ TYPE_STRING }, false, true, TYPE_UNKNOWN}},
@@ -57,6 +56,7 @@ void SemanticAnalyzer::analyze(AST_NODE *root) {
         pagescope.clear();
         instances.clear();
 
+        
         instances["platform"] =  {platform_callables, true};
         instances["draw"] = {draw_callables, true};
 
@@ -90,7 +90,7 @@ void SemanticAnalyzer::parserError(const std::string &message, AST_NODE* current
          throw std::runtime_error("Semantics Error"); 
     }
 
-VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bool funcdecl, bool isfrompage) {
+VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bool funcdecl, bool isfrompage, std::string varscope) {
     if (!node) return TYPE_UNKNOWN;
 
     switch (node->TYPE) {
@@ -154,7 +154,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                     instances[name] = {platform_callables, true};
                 }
                 if(node->TYPE == NODE_VARIABLE) {
-                    scope[name] = {rhsType, true};
+                    scope[VarScopeInfo{name, varscope}] = {rhsType, true};
                     if(node->CHILD->TYPE == NODE_LIST) {
                         ListScopes[name] = {TYPE_LIST, node->CHILD->SUB_STATEMENTS.size()};
                     }
@@ -168,7 +168,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                 return rhsType;
             } else {
                 // variable usage
-                auto it = scope.find(name);
+                auto it = scope.find(VarScopeInfo{name, varscope});
                 auto st = statevars.find(name);
 
                 if(st == statevars.end()) {
@@ -180,7 +180,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                     return statevars[name].type;
                 }
                 if (it != scope.end()) {
-                    return scope[name].type;
+                    return scope[VarScopeInfo{name, varscope}].type;
                 }
 
                 parserError("Variable '" + name + "' used before assignment.", node);
@@ -337,7 +337,8 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                     {
                         std::string name = *param->value;
 
-                        auto it = scope.find(name);
+                        auto it = scope.find(VarScopeInfo{name, varscope});
+                        scope.find(VarScopeInfo{name, varscope});
                         auto st = statevars.find(name);
 
                             if(st == statevars.end()) {
@@ -346,7 +347,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                                 }
                             }
                         if (it != scope.end()) {
-                                return scope[name].type;
+                                return scope[VarScopeInfo{name, varscope}].type;
                         }
                         if (st != statevars.end()) {
                                 return statevars[name].type;
@@ -356,7 +357,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                     {
                         if (param->TYPE == NODE_VARIABLE) {
                             std::string paramName = *param->value;
-                            scope[paramName] = {TYPE_UNKNOWN, true};
+                            scope[VarScopeInfo{paramName, varscope}] = {TYPE_UNKNOWN, true};
                     }
                     }
                 }
@@ -484,7 +485,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
             for (auto stmt : node->SUB_STATEMENTS) {
                 checkNode(stmt);
             }
-            scope.erase(*(node->CHILD->SUB_STATEMENTS[0]->value));
+            scope.erase(VarScopeInfo{*(node->CHILD->SUB_STATEMENTS[0]->value), varscope});;
             return TYPE_UNKNOWN;
 
          case NODE_ADDSTYLE: {
@@ -524,7 +525,16 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                 checkNode(stmt, false);
             return TYPE_UNKNOWN;
         }
-
+        case NODE_SCOPE_INSTANCE: {
+            if(!node->CHILD) {
+                parserError("Scope Instance '" + *(node->value) + "' is missing a child scope.", node);
+            }
+            auto it = scope.find(VarScopeInfo{*(node->CHILD->value), *(node->value)});
+            if (it == scope.end()) {
+                parserError("Scope '"+ *(node->value) +"' has no child called '"+ *(node->CHILD->value) +"'", node);
+            }
+            return checkNode(node->CHILD, false, false, false, *(node->value));
+        }
         case NODE_INSTANCE: {
             auto it = instances.find(*(node->value));
             if (it == instances.end()) {
@@ -666,7 +676,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
             return TYPE_LIST;
         } case NODE_ID_ATTR: {
             std::string id = *(node->value);
-            auto it = scope.find(id);
+            auto it = scope.find(VarScopeInfo{id, varscope});
             // if(std::find(scope.begin(), scope.end(), id) == scope.end()) {
             //     parserError("Variable '" + id + "' is not Defined, can't use len attribute.", node);
             // }
@@ -700,8 +710,11 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
             return TYPE_ALL; // could be any type depending on the contents of the list/dict/string
         }
         case NODE_IMPORT: {
-            std::string 
-            return TYPE_UNKNOWN
+            std::string importPath = *(node->value);
+            for(auto &stmt : node->SUB_STATEMENTS) {
+                checkNode(stmt, false, false, false, importPath);
+            }
+            return TYPE_UNKNOWN;
         }
         default:
             return TYPE_UNKNOWN;

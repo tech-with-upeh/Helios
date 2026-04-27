@@ -1,9 +1,10 @@
+#pragma once
 #include <iostream>
 #include <string>
 #include <vector>
 #include "parser.hpp"
 
-void printAST(AST_NODE* node, int depth = 0, const std::string& relation = "ROOT") {
+inline void printAST(AST_NODE* node, int depth = 0, const std::string& relation = "ROOT") {
     if (!node) return;
 
     // Indent by depth
@@ -66,6 +67,9 @@ void printAST(AST_NODE* node, int depth = 0, const std::string& relation = "ROOT
         case NODE_ID_ATTR: std::cout << "ID_ATTR"; break;
         case NODE_INDEXING: std::cout << "INDEXING"; break;
         case NODE_ADDSTYLE: std::cout << "ADDSTYLE"; break;
+        case NODE_REMOVESTYLE: std::cout << "REMOVESTYLE"; break;
+        case NODE_IMPORT: std::cout << "IMPORT"; break;
+        case NODE_SCOPE_INSTANCE: std::cout << "SCOPE_INSTANCE"; break;
         default: std::cout << "UNKNOWN"; break;
     }
 

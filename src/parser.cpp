@@ -4,6 +4,7 @@
 #include <string>
 #include <cctype>
 #include <regex>
+#include <algorithm>
 
 
 std::string nodetostr(enum NODE_TYPE tYPE) {
@@ -60,6 +61,8 @@ std::string nodetostr(enum NODE_TYPE tYPE) {
         case NODE_PLATFORM_CLS: return "PLATFORM_CLASS"; break;
         case NODE_ID_ATTR: return "ID_ATTR"; break;
         case NODE_INDEXING: return "INDEXING"; break;
+        case NODE_SCOPE_INSTANCE: return "SCOPE_INSTANCE"; break;
+        case NODE_IMPORT: return "IMPORT"; break;
         default: return "UNKNOWN"; break;
     }
 }
@@ -251,14 +254,19 @@ Parser::Parser(std::vector<Token *> tokens)
     }
 
     AST_NODE *Parser::parseInstancecall(std::string *buffer) {
-        AST_NODE *node =  new AST_NODE();;
-        node->TYPE = NODE_INSTANCE;
+        AST_NODE *node =  new AST_NODE();
         node->value = buffer;
         node->lineno = current->lineno;
         node->sourceLine = current->sourceLine;
         node->extra = current->extra;
         node->charno = current->charno;
-        node->CHILD = parseExpression();
+        if(std::find(frinstances.begin(), frinstances.end(), *buffer) == frinstances.end()) {
+            node->TYPE = NODE_SCOPE_INSTANCE;
+            node->CHILD = parseID();  
+        } else {
+            node->TYPE = NODE_INSTANCE;
+            node->CHILD = parseExpression();
+        }
         return node;
     }
 
@@ -308,6 +316,7 @@ Parser::Parser(std::vector<Token *> tokens)
                 proceed(TOKEN_NEWLINE);
                 while (current->TYPE == TOKEN_NEWLINE)
                            proceed(TOKEN_NEWLINE);
+            }
             while (current->TYPE == TOKEN_NEWLINE)
             {
                 proceed(TOKEN_NEWLINE);
@@ -1888,7 +1897,7 @@ Parser::Parser(std::vector<Token *> tokens)
     }
 
     AST_NODE *Parser::parseImports() {
-        proceed(TOKEN_KEYWORD)
+        proceed(TOKEN_KEYWORD);
         AST_NODE *node = new AST_NODE();
         node->TYPE = NODE_IMPORT;
         node->value = &current->value;

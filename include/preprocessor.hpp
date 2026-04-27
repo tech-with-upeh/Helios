@@ -10,5 +10,6 @@
 class PreProcess {
 	public:
 		PreProcess();
+		void processError(const std::string &message, AST_NODE* current);
 		AST_NODE * process(AST_NODE* root);
 };

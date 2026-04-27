@@ -12,6 +12,7 @@ add_executable(helios
     src/lexer.cpp
     src/parser.cpp
     src/semantics.cpp
+    src/preprocessor.cpp
     src/webengine/webengine.cpp
     src/webengine/parseconfig.cpp
     
