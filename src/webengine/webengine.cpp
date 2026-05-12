@@ -1051,6 +1051,8 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
         case NODE_DRAW: {
             return MakeDraw(p, true, parent);
         }
+        
+       // case NODE_SCOPE_INSTANCE: {stringstream ss;}
         case NODE_INSTANCE: {
             stringstream ss;
             ss << *(p->value) << "." << HandleAst(p->CHILD,parent,funcdecl, fromui);

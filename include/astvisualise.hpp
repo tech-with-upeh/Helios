@@ -70,6 +70,8 @@ inline void printAST(AST_NODE* node, int depth = 0, const std::string& relation 
         case NODE_REMOVESTYLE: std::cout << "REMOVESTYLE"; break;
         case NODE_IMPORT: std::cout << "IMPORT"; break;
         case NODE_SCOPE_INSTANCE: std::cout << "SCOPE_INSTANCE"; break;
+        case NODE_FROM_IMPORT: std::cout << "FROM_IMPORT"; break;
+        case NODE_OBJ: std::cout << "NODE_OBJECT"; break; 
         default: std::cout << "UNKNOWN"; break;
     }
 

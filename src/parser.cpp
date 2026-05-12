@@ -63,6 +63,8 @@ std::string nodetostr(enum NODE_TYPE tYPE) {
         case NODE_INDEXING: return "INDEXING"; break;
         case NODE_SCOPE_INSTANCE: return "SCOPE_INSTANCE"; break;
         case NODE_IMPORT: return "IMPORT"; break;
+        case NODE_FROM_IMPORT: return "FROM_IMPORT"; break;
+        case NODE_OBJ: return "OBJ"; break; // basically anything defined , from vars to classes (TODO:) 
         default: return "UNKNOWN"; break;
     }
 }
@@ -132,11 +134,29 @@ Parser::Parser(std::vector<Token *> tokens)
         return current;
     }
 
+    Token *Parser::recede() {
+        index--;
+        if (index < parserTokens.size()) {
+            current = parserTokens.at(index);
+        } else {
+            Token *eofToken = new Token();
+            eofToken->TYPE = TOKEN_EOF;
+            eofToken->value = "\0";
+            current = eofToken;
+        }
+        return current;
+    }
+
     // ---------- Atomic Parsing ----------
     AST_NODE *Parser::parseINT() {
         if (current->TYPE != TOKEN_INT) {
             parserError("Expected integer literal");
         }
+        proceed(current->TYPE);
+        if(current->TYPE == TOKEN_ID || current->TYPE == TOKEN_KEYWORD || current->TYPE == TOKEN_STRING) {
+            parserError("Unexpected token after integer literal: " + current->value);
+        }
+        recede();
         AST_NODE *node = new AST_NODE();
         node->TYPE = NODE_INT;
         node->value = &current->value;
@@ -237,9 +257,10 @@ Parser::Parser(std::vector<Token *> tokens)
             return node;
         }
 
-        // if (current->TYPE == TOKEN_PLUSOP || current->TYPE == TOKEN_MINUSOP || current->TYPE == TOKEN_DIVOP || current->TYPE == TOKEN_MULOP) {
-
-        // }
+        if (current->TYPE == TOKEN_PLUSOP || current->TYPE == TOKEN_MINUSOP || current->TYPE == TOKEN_DIVOP || current->TYPE == TOKEN_MULOP) {
+            recede();
+            return parseComparison();
+        }
         // Otherwise assignment
         proceed(TOKEN_EQ);
         AST_NODE *node = new AST_NODE();
@@ -262,7 +283,14 @@ Parser::Parser(std::vector<Token *> tokens)
         node->charno = current->charno;
         if(std::find(frinstances.begin(), frinstances.end(), *buffer) == frinstances.end()) {
             node->TYPE = NODE_SCOPE_INSTANCE;
-            node->CHILD = parseID();  
+            proceed(TOKEN_ID);
+            if (current->TYPE == TOKEN_RPAREN) {
+                recede();
+                node->CHILD = parseExpression();
+            } else {
+                recede();
+                node->CHILD = parseID();  
+            }
         } else {
             node->TYPE = NODE_INSTANCE;
             node->CHILD = parseExpression();
@@ -555,6 +583,8 @@ Parser::Parser(std::vector<Token *> tokens)
             return node;
         }
 
+        //Not all keywords can be eq to a value
+        // var = return true --- wrong!!
         if (current->TYPE == TOKEN_KEYWORD)
         {
             if (current->value == "page") {
@@ -947,18 +977,19 @@ Parser::Parser(std::vector<Token *> tokens)
 
         bool paran = false;
 
-        if (current->TYPE == TOKEN_LPAREN)
+        if (current->TYPE == TOKEN_LPAREN) {
             paran = true;
             proceed(TOKEN_LPAREN);
+        }
 
-        AST_NODE *argsNode = new AST_NODE;
+        AST_NODE *argsNode = new AST_NODE();
         argsNode->TYPE = NODE_ARGS;
         argsNode->charno = current->charno;
         argsNode->extra = current->extra;
         argsNode->lineno = current->lineno;
         argsNode->sourceLine = current->sourceLine;
         // init
-        AST_NODE *initNode = new AST_NODE;
+        AST_NODE *initNode = new AST_NODE();
         if (current->TYPE == TOKEN_ID)
             initNode = parseID();
         else
@@ -1230,6 +1261,7 @@ Parser::Parser(std::vector<Token *> tokens)
                 }
         return param;
     }
+    
     AST_NODE *Parser::parsepage() {
         std::string *funcName = &current->value;
         proceed(TOKEN_KEYWORD); // "page"
@@ -1314,9 +1346,9 @@ Parser::Parser(std::vector<Token *> tokens)
         }
         proceed(TOKEN_RBRACE);
         funcNode->lineno = current->lineno;
-            funcNode->sourceLine = current->sourceLine;
-           funcNode->extra = current->extra;
-            funcNode->charno = current->charno;
+        funcNode->sourceLine = current->sourceLine;
+        funcNode->extra = current->extra;
+        funcNode->charno = current->charno;
         return funcNode;
     }
 
@@ -1676,10 +1708,9 @@ Parser::Parser(std::vector<Token *> tokens)
                         while (current->TYPE == TOKEN_NEWLINE)
                             proceed(TOKEN_NEWLINE);
                         
-                        if (current->TYPE == TOKEN_RBRACE)
+                        if (current->TYPE == TOKEN_RBRACE) {
                             break;
-
-                        
+                        }
                             AST_NODE* selectorNode = new AST_NODE();
                             selectorNode->TYPE = NODE_CLS;
                             selectorNode->value = &current->value;
@@ -1754,7 +1785,7 @@ Parser::Parser(std::vector<Token *> tokens)
 
     AST_NODE *Parser::parseCtx() {
         proceed(current->TYPE);
-        AST_NODE * ctx = new AST_NODE;
+        AST_NODE * ctx = new AST_NODE();
         ctx->TYPE = NODE_DRAW;
         ctx->charno = current->charno;
         ctx->lineno = current->lineno;
@@ -1806,7 +1837,7 @@ Parser::Parser(std::vector<Token *> tokens)
 
     AST_NODE *Parser::parsePlatform() {
         proceed(current->TYPE);
-        AST_NODE * ctx = new AST_NODE;
+        AST_NODE * ctx = new AST_NODE();
         ctx->TYPE = NODE_PLATFORM_CLS;
         ctx->charno = current->charno;
         ctx->lineno = current->lineno;
@@ -1826,7 +1857,7 @@ Parser::Parser(std::vector<Token *> tokens)
 
     AST_NODE *Parser::parseAddStyle() {
         proceed(current->TYPE);
-        AST_NODE * node = new AST_NODE;
+        AST_NODE * node = new AST_NODE();
         node->TYPE = NODE_ADDSTYLE;
         node->charno = current->charno;
         node->lineno = current->lineno;
@@ -1862,7 +1893,7 @@ Parser::Parser(std::vector<Token *> tokens)
 
     AST_NODE *Parser::parseRemoveStyle() {
         proceed(current->TYPE);
-        AST_NODE * node = new AST_NODE;
+        AST_NODE * node = new AST_NODE();
         node->TYPE = NODE_REMOVESTYLE;
         node->charno = current->charno;
         node->lineno = current->lineno;
@@ -1906,6 +1937,49 @@ Parser::Parser(std::vector<Token *> tokens)
         node->extra = current->extra;
         node->charno = current->charno;
         proceed(TOKEN_STRING);
+        return node;
+    }
+
+    AST_NODE *Parser::parseFromImports() {
+        // from "file" import a,b,c
+        proceed(current->TYPE);
+        AST_NODE *node = new AST_NODE();
+        node->TYPE = NODE_FROM_IMPORT;
+        node->value = &current->value;
+        node->lineno = current->lineno;
+        node->sourceLine = current->sourceLine;
+        node->extra = current->extra;
+        node->charno = current->charno;
+        std::string *filename = &current->value;
+        proceed(TOKEN_STRING);
+        std::vector<std::string> import_syns = {"import", "include", "use"};
+        if (std::find(import_syns.begin(), import_syns.end(), current->value) == import_syns.end()) {
+        parserError("Invalid Syntax: to import from '" + *filename+ "' use 'import', 'include' or 'use'");
+        }
+        proceed(TOKEN_KEYWORD);
+        AST_NODE *impa = new AST_NODE(); //ast node for first object to import
+        impa->TYPE = NODE_OBJ;
+        impa->value = &current->value;
+        impa->lineno = current->lineno;
+        impa->sourceLine = current->sourceLine;
+        impa->extra = current->extra;
+        impa->charno = current->charno; 
+        proceed(TOKEN_ID);
+        node->SUB_STATEMENTS.push_back(impa);
+        if (current->TYPE == TOKEN_COMMA) {
+            while (current->TYPE == TOKEN_COMMA) {
+                proceed(TOKEN_COMMA);
+                AST_NODE *impb = new AST_NODE(); //ast node for first object to import
+                impb->TYPE = NODE_OBJ;
+                impb->value = &current->value;
+                impb->lineno = current->lineno;
+                impb->sourceLine = current->sourceLine;
+                impb->extra = current->extra;
+                impb->charno = current->charno; 
+                node->SUB_STATEMENTS.push_back(impb);
+                proceed(TOKEN_ID); 
+            }
+        }
         return node;
     }
    
@@ -2031,7 +2105,7 @@ Parser::Parser(std::vector<Token *> tokens)
                 AST_NODE *node = new AST_NODE();
                 node->TYPE = NODE_MATH_POW;
                 proceed(TOKEN_LPAREN);
-                AST_NODE *args = new AST_NODE;
+                AST_NODE *args = new AST_NODE();
                 args = parseComparison();
                 if (current->TYPE == TOKEN_COMMA) {
                     proceed(TOKEN_COMMA);
@@ -2098,7 +2172,9 @@ Parser::Parser(std::vector<Token *> tokens)
                 return parseRemoveStyle();
             } else if(current->value == "import" ||current->value == "include" ||current->value == "use") { 
                 return parseImports();
-            }else {
+            } else if (current->value == "from") {
+                return parseFromImports();
+            } else {
                 parserError("Unknown keyword: " + current->value);
             }
         }
@@ -2106,7 +2182,7 @@ Parser::Parser(std::vector<Token *> tokens)
     }
 
     AST_NODE * Parser::parseState() {
-        AST_NODE * node = new AST_NODE;
+        AST_NODE * node = new AST_NODE();
         
         node->TYPE = NODE_SETSTATE;
         if (current->TYPE != TOKEN_KEYWORD && current->value != "state") {
@@ -2128,7 +2204,7 @@ Parser::Parser(std::vector<Token *> tokens)
     }
 
     AST_NODE * Parser::parseSetState() {
-        AST_NODE * node = new AST_NODE;
+        AST_NODE * node = new AST_NODE();
         
         node->TYPE = NODE_GETSTATE;
         if (current->TYPE != TOKEN_ID) {
@@ -2149,7 +2225,7 @@ Parser::Parser(std::vector<Token *> tokens)
     }
 
     AST_NODE * Parser::parseAtSym() {
-        AST_NODE * node = new AST_NODE;
+        AST_NODE * node = new AST_NODE();
         proceed(current->TYPE);
         if (current->TYPE == TOKEN_ID) {
             node = parseSetState();
@@ -2245,7 +2321,7 @@ Parser::Parser(std::vector<Token *> tokens)
                         endofcomment = true;
                         proceed(TOKEN_DIVOP);
                     }
-                    return nullptr;
+                    proceed(current->TYPE);
                 }
                 
                 proceed(current->TYPE);

@@ -214,7 +214,7 @@ def add(a, b) {
     return a + b
 }
 
-Anonymous:
+callbacks:
 
 () {
     print("hello")
@@ -283,7 +283,15 @@ Block:
  /* comment */
 
 --------------------------------
-20. ERROR RULES
+20. Imports
+--------------------------------
+
+ - import file
+ - from file import objects
+ - from file import object1, object2
+
+--------------------------------
+21. ERROR RULES
 --------------------------------
 
 - Missing required arguments cause hard errors
@@ -294,7 +302,7 @@ Block:
 - Unknown keywords cause errors
 
 --------------------------------
-21. MENTAL MODEL
+22. MENTAL MODEL
 --------------------------------
 
 Helios ≈ React + CSS + Canvas + scripting language

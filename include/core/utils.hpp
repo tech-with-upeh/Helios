@@ -4,6 +4,7 @@
 #include <vector>
 #include <unordered_map>
 #include "parser.hpp"
+#include "semantics.hpp"
 #include <indicators/termcolor.hpp>
 #include <indicators/cursor_control.hpp>
 #include <atomic>
@@ -19,6 +20,11 @@ struct PageIRInfo  {
     bool isbackend;
     AST_NODE *IR;
     bool useclient;
+};
+
+struct PreprocessRet {
+    AST_NODE *ProcessAstNodes;
+     std::unordered_map<VarScopeInfo, VarInfo> ImportVec;
 };
 
 static std::mutex cout_mutex;

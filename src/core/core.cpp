@@ -10,11 +10,9 @@
 #endif
 
 #include <filesystem>
-#include <algorithm>
+//#include <algorithm>
 #include <cstdlib>
 #include <cstring>
-#include <thread> 
-
 
 #include "lexer.hpp"
 #include "parser.hpp"
@@ -26,13 +24,12 @@
 #include "utils.hpp"
 
 
-#include <memory>
+//#include <memory>
 #include <uWebSockets/App.h>
 #include "httpserver.hpp"
 
 
 
-namespace fs = std::filesystem;
 
 
 Core::Core() {}
@@ -1324,7 +1321,7 @@ void Core::generateFiles(const std::vector<std::string>& targets, const std::str
                             queueRemoveNode(page.old_children[i].dom_id);
                         }
 
-                        applyPatches();   // ✅ REQUIRED
+                        applyPatches(); // required
 
                         return;
                     }
@@ -1412,28 +1409,44 @@ void Core::builder() {
     } 
     buffer << ' '; // EOF marker
     std::string sourcecode = buffer.str();
+
     
     Lexer lexer(sourcecode);
     std::vector<Token *> tokens = lexer.tokenize();
+    std::cout << "done Lex!\n"; 
     Parser parser(tokens);
-    AST_NODE * root = parser.parse();
+    AST_NODE *root = parser.parse();
 
+    std::cout << "done Parse!\n";
 
+    /*
+     * parse === {
+     *  import
+     *  var
+     *  var
+     * }
+     *
+     * ....>>
+     * semantics == 
+     */
+
+    std::cout << "=============starting processor";
     PreProcess preprocessor;
-    preprocessor.process(root);
+    PreprocessRet *proccessed = preprocessor.process(root);
 
 
-    std::cout << "\n==== AST Visualization ====\n";
+    std::cout << "\n---=====\n";
     printAST(root);
-    std::cout << "\n==== AST Visualization ENDed ====\n";
-    cout << "Root Node has " << root->SUB_STATEMENTS.size() << " sub-statements." << endl;
-     cout << "[i] Finished Parsing [i]" << endl;
+    std::cout << "\nEnd\n";
 
     SemanticAnalyzer analyzer;
-    analyzer.analyze(root);
+    analyzer.analyze(root, proccessed->ImportVec);
+ 
     // cout << "[i] Finished Semantic Analysing [i]" << endl;
     WebEngine gen;
     Core::routes = gen.gen(root);
+
+    exit(1); 
     //  for (const auto& [url, info] : Core::routes) {
     //     std::cout << url << std::endl;
     //  }
@@ -1454,16 +1467,16 @@ void Core::builder() {
     #endif
     // system(cmd.c_str());
 
-    FILE* pipe = POPEN(cmd.c_str(), "r");
-    if (!pipe) return;
-
-    char ppenbuffer[128];
-    while (fgets(ppenbuffer, sizeof(ppenbuffer), pipe) != nullptr) {
-        // DO NOTHING (or log somewhere else)
-        std::cout << ppenbuffer << "\n";
-    }
-
-    PCLOSE(pipe);
+    // FILE* pipe = POPEN(cmd.c_str(), "r");
+    // if (!pipe) return;
+    //
+    // char ppenbuffer[128];
+    // while (fgets(ppenbuffer, sizeof(ppenbuffer), pipe) != nullptr) {
+    //     // DO NOTHING (or log somewhere else)
+    //     std::cout << ppenbuffer << "\n";
+    // }
+    //
+    // PCLOSE(pipe);
     //> /dev/null 2>&1
 }
 

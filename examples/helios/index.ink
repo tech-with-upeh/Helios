@@ -1,7 +1,16 @@
-include "file"
+import "file"
+#from "file" include name, in, onn
+/*  from "main" include uiii
+ *  from "kl" use oop
+ *  from "ololololo" import olp
+ *  import "head" */
 
+kl = 44
+#print(file.olpp)
 
-op.ioo = 1
+print(file.name)
+
+#print(file.in * fil.klo)
 
  page("Helios ~ Your Full Stack Framework") {
      h = Platform().height

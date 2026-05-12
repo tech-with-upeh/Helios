@@ -37,6 +37,8 @@ enum NODE_TYPE {
     NODE_MATH_POW,
     NODE_STYLE,
     NODE_IMPORT,
+    NODE_FROM_IMPORT,
+    NODE_OBJ,
     //ui specifics
     NODE_app,
     NODE_page,
@@ -93,6 +95,9 @@ public:
     // ---------- Token Consumption ----------
     Token *proceed(enum Tokentype Tokentype);
 
+    // Token retreat (Go backwards)
+    Token *recede();
+
     // ---------- Atomic Parsing ----------
     AST_NODE *parseINT();
 
@@ -143,7 +148,9 @@ public:
     AST_NODE *parseRemoveStyle();
 
     AST_NODE *parseImports();
-    
+    AST_NODE *parseFromImports();
+
+
     std::vector<std::string> defined_keywords;
     std::vector<std::string> loop_keywords;
     /*

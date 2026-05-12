@@ -1,10 +1,11 @@
 #include "semantics.hpp"
-#include "preprocessor.hpp"
+#include "parser.hpp"
+//#include "preprocessor.hpp"
 #include <iostream>
 #include <unordered_map>
 #include <string>
 #include <vector>
-#include <span>
+//#include <span>
 
 
  std::string  vartypestr(VarType type) {
@@ -48,7 +49,7 @@ SemanticAnalyzer::SemanticAnalyzer() {
     };
 }
 
-void SemanticAnalyzer::analyze(AST_NODE *root) {
+void SemanticAnalyzer::analyze(AST_NODE *root, std::unordered_map<VarScopeInfo, VarInfo> procImports) {
         scope.clear();
         statevars.clear();
         declaredFunctions.clear();
@@ -60,8 +61,10 @@ void SemanticAnalyzer::analyze(AST_NODE *root) {
         instances["platform"] =  {platform_callables, true};
         instances["draw"] = {draw_callables, true};
 
+        scope.merge(procImports);
+
         // Pass 1: Analyze all statements
-        for (auto stmt : root->SUB_STATEMENTS) {
+        for (const auto &stmt : root->SUB_STATEMENTS) {
             checkNode(stmt);
         }
 
@@ -169,11 +172,12 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
             } else {
                 // variable usage
                 auto it = scope.find(VarScopeInfo{name, varscope});
+                std::cout << "usage___> " << varscope << std::endl;
                 auto st = statevars.find(name);
 
                 if(st == statevars.end()) {
                     if(it == scope.end()) {
-                        parserError("Variable '" + name + "' used before assignment.", node);
+                        parserError("Variable '" + name + "'a used before assignment in scope "+varscope +" .", node);
                     }
                 }
                 if (st != statevars.end()) {
@@ -183,7 +187,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                     return scope[VarScopeInfo{name, varscope}].type;
                 }
 
-                parserError("Variable '" + name + "' used before assignment.", node);
+                parserError("Variable '" + name + "'b used before assignment.", node);
                 return TYPE_UNKNOWN;
 
             }
@@ -300,7 +304,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
         // Binary operations (e.g., +, -, ==)
         case NODE_BINARY_OP:
         case NODE_COMPARISON_OP: {
-            VarType leftType = checkNode(node->SUB_STATEMENTS[0]);
+            VarType leftType = checkNode(node->SUB_STATEMENTS[0], false, false, false, varscope);
             VarType rightType = checkNode(node->SUB_STATEMENTS[1]);
             std::string op = *node->value;
 
@@ -343,7 +347,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
 
                             if(st == statevars.end()) {
                                 if(it == scope.end()) {
-                                    parserError("Variable '" + name + "' used before assignment.", node);
+                                    parserError("Variable '" + name + "'c used before assignment.", node);
                                 }
                             }
                         if (it != scope.end()) {
@@ -406,7 +410,7 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                     }
                     return TYPE_FUNCTION;
                 }
-                VarType ty = checkNode(node->CHILD);
+                VarType ty = checkNode(node->CHILD, uiexceptonstylsheet, funcdecl, isfrompage, varscope);
 
                 if (node->CHILD->TYPE == NODE_INSTANCE) {
                     return ty;
@@ -529,10 +533,29 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
             if(!node->CHILD) {
                 parserError("Scope Instance '" + *(node->value) + "' is missing a child scope.", node);
             }
-            auto it = scope.find(VarScopeInfo{*(node->CHILD->value), *(node->value)});
-            if (it == scope.end()) {
-                parserError("Scope '"+ *(node->value) +"' has no child called '"+ *(node->CHILD->value) +"'", node);
+            if(node->CHILD->TYPE == NODE_SCOPE_INSTANCE) {
+                return checkNode(node->CHILD, false, false,false, *(node->value));
             }
+            
+            if (node->CHILD->TYPE == NODE_VARIABLE) {
+                auto it = scope.find(VarScopeInfo{*(node->CHILD->value), *(node->value)});
+                if (it == scope.end()) {
+                    parserError("Scope '"+ *(node->value) +"' has no child called '"+ *(node->CHILD->value) +"'", node);
+                } 
+            } else {
+                if (node->CHILD->TYPE == NODE_UNARY_OP) {
+                    auto it = scope.find(VarScopeInfo{*(node->CHILD->CHILD->value), *(node->value)});
+                    if (it == scope.end()) {
+                        parserError("Scope '"+ *(node->value) +"' has no child called '"+ *(node->CHILD->CHILD->value) +"'", node);
+                    }  
+                } else {
+                    auto it = scope.find(VarScopeInfo{*(node->CHILD->SUB_STATEMENTS[0]->value), *(node->value)});
+                    if (it == scope.end()) {
+                        parserError("Scope '"+ *(node->value) +"' has no child called '"+ *(node->CHILD->SUB_STATEMENTS[0]->value) +"'", node);
+                    } 
+                } 
+            }
+            std::cout << "Node:--->>>" << *(node->value) << std::endl;
             return checkNode(node->CHILD, false, false, false, *(node->value));
         }
         case NODE_INSTANCE: {

@@ -69,7 +69,9 @@ namespace std {
 class SemanticAnalyzer {
 public:
     SemanticAnalyzer();
-    void analyze(AST_NODE *root);
+    void analyze(AST_NODE *root, std::unordered_map<VarScopeInfo, VarInfo> procImports);
+
+   VarType checkNode(AST_NODE *node, bool uiexceptonstylsheet = false, bool funcdecl = false, bool isfrompage = false, std::string varscope = "root"); 
 
 private:
     std::unordered_map<VarScopeInfo, VarInfo> scope;
@@ -87,6 +89,6 @@ private:
     std::unordered_map<std::string, ListorDictInfo> ListScopes;
 
     void parserError(const std::string &message, AST_NODE* current);
-    VarType checkNode(AST_NODE *node, bool uiexceptonstylsheet = false, bool funcdecl = false, bool isfrompage = false, std::string varscope = "root");
+
     void semanticError(const std::string &msg);
 };
