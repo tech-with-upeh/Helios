@@ -74,7 +74,7 @@ inline void printAST(AST_NODE* node, int depth = 0, const std::string& relation 
         case NODE_OBJ: std::cout << "NODE_OBJECT"; break; 
         default: std::cout << "UNKNOWN"; break;
     }
-
+ 
     // Print node value
     if (node->value && !node->value->empty())
         std::cout << ", value=\"" << *(node->value) << "\"";

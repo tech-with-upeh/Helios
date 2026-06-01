@@ -19,16 +19,19 @@ int main() {
 	});
 	
 	Router::add("/",page_1);
-    int kl = 44;
+// Importing module file
+auto plt2 = Platform()::height();
+auto plt = Platform();
 	cout <<  << endl;
-	page_1->builder = [&, kl](VPage& page, std::string msg) {
+	cout <<  << endl;
+	page_1->builder = [&, plt, onn, kl, in, plt2, name](VPage& page, std::string msg) {
 		page.setTitle("Helios ~ Your Full Stack Framework");
 		page.addScript("anim.js");
 		page.addStylesheet("./global.css");
 		page.addStylesheet("https://cdn.lineicons.com/5.1/line/lineicons.css");
 		page.setFavicon("logo.png");
 
-		auto h = Platform().height();
+		auto h = Platform()::height();
 			if(h > 992.0){
     	cout << string("This is a desktop device") << endl;
     

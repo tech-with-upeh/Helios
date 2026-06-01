@@ -1849,9 +1849,19 @@ Parser::Parser(std::vector<Token *> tokens)
             proceed(TOKEN_DOT);
             std::string* buf = new std::string("platform");
             ctx->CHILD= parseInstancecall(buf);
+            return ctx;
         }
-        
+
+        ctx->CHILD = new AST_NODE();
+        ctx->CHILD->TYPE = NODE_INSTANCE;
+        ctx->CHILD->value = new std::string("platform");
+        ctx->CHILD->lineno = current->lineno;
+        ctx->CHILD->sourceLine = current->sourceLine;
+        ctx->CHILD->extra = current->extra;
+        ctx->CHILD->charno = current->charno;
+
         return ctx;
+        
     }
 
 

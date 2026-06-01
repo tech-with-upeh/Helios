@@ -72,6 +72,7 @@ std::unordered_map<string, PageIRInfo> WebEngine::gen(AST_NODE *root) {
         }
     })";
 
+
     stringstream codebuffer;
 
     codebuffer << "\n";
@@ -1053,9 +1054,31 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
         }
         
        // case NODE_SCOPE_INSTANCE: {stringstream ss;}
+       case NODE_SCOPE_INSTANCE: {
+        std::cout << "cfgfgghfghfdgzfdxfhjjhk" << std::endl;
+        stringstream ss;
+        std::cout << "Has Extras..... " << p->extra << std::endl; 
+        ss << *(p->value); //<< "::instance()";
+        if (p->CHILD) {
+            ss << "::" << *(p->CHILD->value) << "()";
+        }
+        return ss.str();
+       }
         case NODE_INSTANCE: {
+            string tmp = "platform";
+            if (!p->CHILD && *(p->value) == tmp) {
+                return "";
+            }
             stringstream ss;
-            ss << *(p->value) << "." << HandleAst(p->CHILD,parent,funcdecl, fromui);
+           
+            //ss << "." << *(p->value) << "." << HandleAst(p->CHILD,parent,funcdecl, fromui);
+            if(p->CHILD) {
+                ss << "::" << *(p->CHILD->value) << "()";
+                //ss << HandleAst(p->CHILD,parent,funcdecl, fromui);
+                if (p->CHILD->CHILD) {
+                    ss << "::" << *(p->CHILD->CHILD->value) << "()";
+                }
+            }
             return ss.str();
         }
         case NODE_BINARY_OP:
@@ -1105,8 +1128,8 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
         case NODE_PLATFORM_CLS: {
             stringstream ss;
             ss << "Platform()";
-            if (p->CHILD) {
-                ss << "." << HandleAst(p->CHILD->CHILD,parent,funcdecl, fromui) << "()";
+            if (p->CHILD ) {
+                ss << HandleAst(p->CHILD,parent,funcdecl, fromui);
             }
             if(!fromui) {
                 ss << ";";
@@ -1129,6 +1152,17 @@ std::string WebEngine::HandleAst(AST_NODE *p, std::string parent, bool funcdecl,
             std::string varname = *(p->value);
             std::string indexexpr = exprForNode(p->CHILD);
             ss << "std::any_cast<std::string>(" << varname << "[" << indexexpr << "])";
+            return ss.str();
+        } case NODE_IMPORT: {
+            stringstream ss;
+            std::string moduleName = *(p->value);
+            ss << "namespace " << moduleName << " { \n";
+            for (auto &stmt : p->SUB_STATEMENTS) {
+                ss << HandleAst(stmt, parent, funcdecl, fromui) << "\n";
+            }
+            ss << "}\n";
+
+            return "// Importing module " + moduleName;
             return ss.str();
         }
         // case NODE_LIST: {

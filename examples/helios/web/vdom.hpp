@@ -225,6 +225,26 @@ namespace appstate {
 }
 
 
+namespace Platform {
+    double height() {
+        return EM_ASM_DOUBLE({
+            console.log(document.body.getBoundingClientRect().height);
+            return document.body.getBoundingClientRect().height;
+        });
+    }
+    double width() {
+        return EM_ASM_DOUBLE({
+                return document.body.getBoundingClientRect().width;
+            });
+    }
+    double scrollY() {
+        return EM_ASM_DOUBLE({
+                return window.scrollY;
+            });
+    }
+}
+
+
 
 
 // -------------------- Callback Registry --------------------
@@ -564,25 +584,26 @@ class Canvas2D {
     }
 };
 
-class Platform {
-    public:
-        double height() {
-            return EM_ASM_DOUBLE({
-                console.log(document.body.getBoundingClientRect().height);
-                return document.body.getBoundingClientRect().height;
-            });
-        }
-        double width() {
-            return EM_ASM_DOUBLE({
-                    return document.body.getBoundingClientRect().width;
-                });
-        }
-        double scrollY() {
-            return EM_ASM_DOUBLE({
-                    return window.scrollY;
-                });
-        }
-};
+// class Platform {
+//     public:
+//         double height() {
+//             return EM_ASM_DOUBLE({
+//                 console.log(document.body.getBoundingClientRect().height);
+//                 return document.body.getBoundingClientRect().height;
+//             });
+//         }
+//         double width() {
+//             return EM_ASM_DOUBLE({
+//                     return document.body.getBoundingClientRect().width;
+//                 });
+//         }
+//         double scrollY() {
+//             return EM_ASM_DOUBLE({
+//                     return window.scrollY;
+//                 });
+//         }
+// };
+
 
 std::shared_ptr<VPage> MakeErrorPage() {
     auto ErrorPage = std::make_shared<VPage>();

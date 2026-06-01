@@ -71,7 +71,7 @@ public:
     SemanticAnalyzer();
     void analyze(AST_NODE *root, std::unordered_map<VarScopeInfo, VarInfo> procImports);
 
-   VarType checkNode(AST_NODE *node, bool uiexceptonstylsheet = false, bool funcdecl = false, bool isfrompage = false, std::string varscope = "root"); 
+   VarType checkNode(AST_NODE *node, bool uiexceptonstylsheet = false, bool funcdecl = false, bool isfrompage = false, std::string varscope = "root", bool isfromscopeinstance = false); 
 
 private:
     std::unordered_map<VarScopeInfo, VarInfo> scope;

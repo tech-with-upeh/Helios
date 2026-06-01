@@ -5,8 +5,13 @@ import "file"
  *  from "ololololo" import olp
  *  import "head" */
 
-kl = 44
 #print(file.olpp)
+
+plt2 = Platform().height
+plt = Platform()
+
+
+print(plt.height)
 
 print(file.name)
 

@@ -93,7 +93,8 @@ void SemanticAnalyzer::parserError(const std::string &message, AST_NODE* current
          throw std::runtime_error("Semantics Error"); 
     }
 
-VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bool funcdecl, bool isfrompage, std::string varscope) {
+    //isfromscope --> is for when i have scope instances like platform.height, so i can pass the scope as the varscope and then check if height is in platform's scope, if not error, if yes return type
+VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bool funcdecl, bool isfrompage, std::string varscope, bool isfromscopeinstance) {
     if (!node) return TYPE_UNKNOWN;
 
     switch (node->TYPE) {
@@ -154,10 +155,14 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                     instances[name] = {draw_callables, true};
                 }
                 if (node->CHILD->TYPE == NODE_PLATFORM_CLS) {
+                    //to see if i use scope i'll be able to have var = PLatform() and then var.height
                     instances[name] = {platform_callables, true};
+                    //scope[VarScopeInfo{name, varscope}] = {rhsType, true};
                 }
                 if(node->TYPE == NODE_VARIABLE) {
                     scope[VarScopeInfo{name, varscope}] = {rhsType, true};
+                    instances[varscope].callables[name] = {{}, false, true, rhsType};
+                    //{"height",{{}, true, false, TYPE_FLOAT}},
                     if(node->CHILD->TYPE == NODE_LIST) {
                         ListScopes[name] = {TYPE_LIST, node->CHILD->SUB_STATEMENTS.size()};
                     }
@@ -171,20 +176,41 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                 return rhsType;
             } else {
                 // variable usage
-                auto it = scope.find(VarScopeInfo{name, varscope});
-                std::cout << "usage___> " << varscope << std::endl;
-                auto st = statevars.find(name);
 
-                if(st == statevars.end()) {
-                    if(it == scope.end()) {
-                        parserError("Variable '" + name + "'a used before assignment in scope "+varscope +" .", node);
+                if (isfromscopeinstance)
+                {
+                    auto inst = instances.find(varscope);
+                    if (inst == instances.end()) {
+                        //parserError("Variable '" + name + "'a used before assignment in scope "+varscope +" .", node);
+                        //parserError(varscope+" has no method called "+ name, node);
+                        parserError("Undefined Instance of "+ varscope+ " while looking for "+name, node);
                     }
-                }
-                if (st != statevars.end()) {
-                    return statevars[name].type;
-                }
-                if (it != scope.end()) {
-                    return scope[VarScopeInfo{name, varscope}].type;
+
+                    auto inst_calls = instances[varscope].callables.find(name);
+                    if (inst_calls == instances[varscope].callables.end()) {
+                        parserError(varscope+" has no method called "+ name, node);
+                    }
+                    return instances[varscope].callables[name].returnType;
+                } else {
+                    auto it = scope.find(VarScopeInfo{name, varscope});
+                    auto st = statevars.find(name);
+
+                    if(st == statevars.end()) {
+                        if(it == scope.end()) {
+                            // if (inst == instances.end()) {
+                            //     parserError("Variable '" + name + "' used before assignment in scope "+varscope +" .", node);
+                            //     /* code */
+                            // }
+                            
+                            parserError("Variable '" + name + "'a used before assignment in scope "+varscope +" .", node);
+                        }
+                    }
+                    if (st != statevars.end()) {
+                        return statevars[name].type;
+                    }
+                    if (it != scope.end()) {
+                        return scope[VarScopeInfo{name, varscope}].type;
+                    }
                 }
 
                 parserError("Variable '" + name + "'b used before assignment.", node);
@@ -537,26 +563,45 @@ VarType SemanticAnalyzer::checkNode(AST_NODE *node, bool uiexceptonstylsheet, bo
                 return checkNode(node->CHILD, false, false,false, *(node->value));
             }
             
+            /*
+            plt = Platform()
+            import plt
+             plt.height
+             plt.myvar
+            */
+           
+
             if (node->CHILD->TYPE == NODE_VARIABLE) {
+                
                 auto it = scope.find(VarScopeInfo{*(node->CHILD->value), *(node->value)});
                 if (it == scope.end()) {
-                    parserError("Scope '"+ *(node->value) +"' has no child called '"+ *(node->CHILD->value) +"'", node);
-                } 
+                    auto it2 = instances.find(*(node->value));
+                    if (it2 == instances.end()) {
+                        parserError("Scope a'"+ *(node->value) +"' has no child called '"+ *(node->CHILD->value) +"'", node);
+                    } else {
+                        std::string tmp = vartypestr(instances[*(node->value)].callables[*(node->CHILD->value)].returnType); //"isfromhelios";
+                        node->extra = tmp;
+                    }
+                } else {
+                    //std::string tmp = "isfromuser";
+                    std::string tmp = vartypestr(scope[VarScopeInfo{*(node->CHILD->value), *(node->value)}].type);
+                    node->extra = tmp;
+                }
             } else {
                 if (node->CHILD->TYPE == NODE_UNARY_OP) {
                     auto it = scope.find(VarScopeInfo{*(node->CHILD->CHILD->value), *(node->value)});
                     if (it == scope.end()) {
-                        parserError("Scope '"+ *(node->value) +"' has no child called '"+ *(node->CHILD->CHILD->value) +"'", node);
+                        parserError("Scope b'"+ *(node->value) +"' has no child called '"+ *(node->CHILD->CHILD->value) +"'", node);
                     }  
                 } else {
                     auto it = scope.find(VarScopeInfo{*(node->CHILD->SUB_STATEMENTS[0]->value), *(node->value)});
                     if (it == scope.end()) {
-                        parserError("Scope '"+ *(node->value) +"' has no child called '"+ *(node->CHILD->SUB_STATEMENTS[0]->value) +"'", node);
+                        parserError("Scope c'"+ *(node->value) +"' has no child called '"+ *(node->CHILD->SUB_STATEMENTS[0]->value) +"'", node);
                     } 
                 } 
             }
-            std::cout << "Node:--->>>" << *(node->value) << std::endl;
-            return checkNode(node->CHILD, false, false, false, *(node->value));
+            std::cout << "Node:--->>> astarggsggsgs" << *(node->value) << std::endl;
+            return checkNode(node->CHILD, false, false, false, *(node->value), true);
         }
         case NODE_INSTANCE: {
             auto it = instances.find(*(node->value));
